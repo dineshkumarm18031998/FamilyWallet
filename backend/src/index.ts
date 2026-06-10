@@ -3,6 +3,7 @@ import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import bcrypt from 'bcryptjs';
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
@@ -22,35 +23,39 @@ app.get('/', (req, res) => {
 // ----------------------------------------------------
 // AUTH API
 // ----------------------------------------------------
-app.post('/api/auth/login', async (req, res) => {
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ error: 'Phone number required' });
-  
+app.post('/api/auth/register', async (req, res) => {
+  const { phone, password, name } = req.body;
+  if (!phone || !password) return res.status(400).json({ error: 'Phone and password required' });
+
   try {
-    let user = await prisma.user.findUnique({ where: { phone } });
-    if (!user) {
-      user = await prisma.user.create({ data: { phone } });
-    }
-    // Mocking real SMS dispatch
-    res.json({ success: true, message: 'OTP sent' });
+    const existing = await prisma.user.findUnique({ where: { phone } });
+    if (existing) return res.status(400).json({ error: 'Phone number already registered' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: { phone, password: hashedPassword, name }
+    });
+    
+    res.json({ success: true, token: user.id });
   } catch (err) {
-    res.status(500).json({ error: 'Database error' });
+    res.status(500).json({ error: 'Database error during registration' });
   }
 });
 
-app.post('/api/auth/verify', async (req, res) => {
-  const { phone, otp } = req.body;
-  if (!phone || !otp) return res.status(400).json({ error: 'Missing phone or OTP' });
+app.post('/api/auth/login', async (req, res) => {
+  const { phone, password } = req.body;
+  if (!phone || !password) return res.status(400).json({ error: 'Phone and password required' });
   
-  if (otp !== '123456') return res.status(401).json({ error: 'Invalid OTP' });
-
   try {
     const user = await prisma.user.findUnique({ where: { phone } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Invalid password' });
+
     res.json({ success: true, token: user.id });
   } catch (err) {
-    res.status(500).json({ error: 'Database error' });
+    res.status(500).json({ error: 'Database error during login' });
   }
 });
 

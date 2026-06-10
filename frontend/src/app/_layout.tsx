@@ -5,6 +5,7 @@ import { SQLiteProvider } from 'expo-sqlite';
 import * as SplashScreen from 'expo-splash-screen';
 import { initDB } from '../utils/database';
 import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
+import { initializeSmsListener } from '../utils/smsListener';
 
 // Keep the native splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -25,6 +26,33 @@ export default function RootLayout() {
         setAppIsReady(true);
         // Hide the native splash screen, which instantly reveals our custom AnimatedSplashScreen
         await SplashScreen.hideAsync();
+
+        // Initialize SMS Background Listener
+        initializeSmsListener(async (amount, merchant, rawText) => {
+          console.log('Background SMS triggered an expense!', amount);
+          try {
+            await fetch('https://familywallet-production-a87d.up.railway.app/api/sync/push', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: 'user_123_temp', // fallback
+                expenses: [{
+                  amount,
+                  merchant,
+                  category: 'Auto-Detected',
+                  visibility: 'Shared',
+                  date: new Date().toISOString(),
+                  notes: rawText,
+                  source: 'Bank SMS'
+                }]
+              })
+            });
+            console.log('SMS Expense synced to cloud successfully!');
+          } catch (e) {
+            console.error('Failed to sync SMS expense', e);
+          }
+        });
+
       }
     }
     prepare();

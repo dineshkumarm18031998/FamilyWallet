@@ -11,6 +11,11 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.dinesh.familywallet",
+      "permissions": [
+        "RECEIVE_SMS",
+        "READ_SMS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/logo.png"
@@ -38,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cc7ef63a-821c-4432-873f-9b11b7c74bf2"
+      }
     }
   }
 }
