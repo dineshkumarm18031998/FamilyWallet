@@ -2,7 +2,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, S
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
-import { syncWithCloud } from '../../utils/database';
+import { syncWithCloud, clearSession } from '../../utils/database';
+import { useRouter } from 'expo-router';
 
 export default function Settings() {
   const db = useSQLiteContext();
@@ -12,6 +13,12 @@ export default function Settings() {
   const [autoShare, setAutoShare] = useState(true);
   const [darkMode, setDarkMode] = useState(isDark);
   const [isSyncing, setIsSyncing] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await clearSession(db);
+    router.replace('/login');
+  };
 
   const SettingRow = ({ icon, label, type = 'link', value, onToggle }: any) => (
     <TouchableOpacity style={[styles.settingRow, isDark ? styles.borderDark : styles.borderLight]} disabled={type === 'toggle'} onPress={type === 'action' ? onToggle : undefined}>
@@ -96,7 +103,7 @@ export default function Settings() {
         <SettingRow icon="refresh-outline" label="Restore Backup" />
       </View>
 
-      <TouchableOpacity style={styles.logoutBtn}>
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </ScrollView>

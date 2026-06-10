@@ -47,6 +47,10 @@ export const getSession = async (db: SQLite.SQLiteDatabase) => {
   return row?.userId || null;
 };
 
+export const clearSession = async (db: SQLite.SQLiteDatabase) => {
+  await db.runAsync('DELETE FROM session WHERE id = 1');
+};
+
 export const getRecentExpenses = async (db: SQLite.SQLiteDatabase, limit: number = 5) => {
   const allRows = await db.getAllAsync('SELECT * FROM expenses ORDER BY date DESC LIMIT ?', [limit]);
   return allRows;
