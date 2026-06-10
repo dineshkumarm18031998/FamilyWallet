@@ -54,8 +54,7 @@ export const syncWithCloud = async (db: SQLite.SQLiteDatabase) => {
     // In a real app, this comes from Auth
     const userId = "user_123_temp";
 
-    // Use your computer's local IP or localhost for testing
-    const response = await fetch('http://localhost:3000/api/sync/push', {
+    const response = await fetch('https://familywallet-production-a87d.up.railway.app/api/sync/push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, expenses: pendingExpenses })
