@@ -13,7 +13,7 @@ export default function OTPScreen() {
   const handleVerify = () => {
     // For V1 local dev, accept '123456' or just any 6 digits
     if (otp.length === 6) {
-      router.replace('/(tabs)');
+      router.replace('/onboarding');
     }
   };
 

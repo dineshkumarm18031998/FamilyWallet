@@ -46,6 +46,11 @@ export const getWalletTotals = async (db: SQLite.SQLiteDatabase) => {
   };
 };
 
+export const getCategoryTotals = async (db: SQLite.SQLiteDatabase) => {
+  const result = await db.getAllAsync('SELECT category, SUM(amount) as total FROM expenses GROUP BY category ORDER BY total DESC');
+  return result;
+};
+
 export const syncWithCloud = async (db: SQLite.SQLiteDatabase) => {
   try {
     const pendingExpenses = await db.getAllAsync("SELECT * FROM expenses WHERE syncStatus = 'Pending'");

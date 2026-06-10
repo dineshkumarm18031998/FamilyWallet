@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getRecentExpenses, getWalletTotals } from '../../utils/database';
+import { getRecentExpenses, getWalletTotals, getCategoryTotals } from '../../utils/database';
 
 export default function Home() {
   const db = useSQLiteContext();
@@ -13,6 +13,8 @@ export default function Home() {
 
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [totals, setTotals] = useState({ sharedTotal: 0, privateTotal: 0 });
+  const [categoryStats, setCategoryStats] = useState<any[]>([]);
+  const [fabOpen, setFabOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -21,10 +23,22 @@ export default function Home() {
         setRecentTx(tx);
         const t = await getWalletTotals(db);
         setTotals(t);
+        const stats = await getCategoryTotals(db);
+        setCategoryStats(stats as any[]);
       };
       loadData();
     }, [db])
   );
+
+  const getIconForCategory = (cat: string) => {
+    const map: any = { Food: 'fast-food', Groceries: 'cart', Recharge: 'phone-portrait', DTH: 'tv', Shopping: 'bag', Utilities: 'flash', Rent: 'home', Fuel: 'car', Medicine: 'medkit', Education: 'school', Travel: 'airplane' };
+    return map[cat] || 'receipt';
+  };
+
+  const getColorForCategory = (cat: string) => {
+    const map: any = { Food: '#ef4444', Groceries: '#f59e0b', Recharge: '#3b82f6', DTH: '#8b5cf6', Shopping: '#ec4899', Utilities: '#06b6d4', Rent: '#14b8a6', Fuel: '#f97316', Medicine: '#10b981', Education: '#6366f1', Travel: '#0ea5e9' };
+    return map[cat] || '#64748b';
+  };
 
   return (
     <View style={[styles.container, isDark ? styles.darkBg : styles.lightBg]}>
@@ -59,10 +73,37 @@ export default function Home() {
           </View>
         </View>
 
+        {/* Quick Stats */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Quick Stats</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScroll}>
+          {categoryStats.length === 0 ? (
+            <View style={[styles.statChip, isDark ? styles.cardDark : styles.cardLight]}>
+              <Text style={{color: '#9ca3af'}}>No data yet</Text>
+            </View>
+          ) : (
+            categoryStats.map((stat, i) => {
+              const color = getColorForCategory(stat.category);
+              return (
+                <View key={i} style={[styles.statChip, isDark ? styles.cardDark : styles.cardLight]}>
+                  <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
+                    <Ionicons name={getIconForCategory(stat.category)} size={16} color={color} />
+                  </View>
+                  <View>
+                    <Text style={[styles.statCatName, isDark ? styles.textLight : styles.textDark]}>{stat.category}</Text>
+                    <Text style={styles.statCatAmount}>₹{stat.total.toLocaleString('en-IN')}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+
         {/* Recent Transactions */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Recent Transactions</Text>
-          <TouchableOpacity><Text style={styles.seeAll}>See All</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/expenses')}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>
         </View>
 
         <View style={[styles.transactionsCard, isDark ? styles.cardDark : styles.cardLight]}>
@@ -70,12 +111,8 @@ export default function Home() {
             <Text style={{ textAlign: 'center', color: '#9ca3af', padding: 20 }}>No recent transactions.</Text>
           ) : (
             recentTx.map(tx => {
-              const iconMap: any = { Food: 'fast-food', Groceries: 'cart', Recharge: 'phone-portrait' };
-              const colorMap: any = { Food: '#ef4444', Groceries: '#f59e0b', Recharge: '#3b82f6' };
-              const icon = iconMap[tx.category] || 'receipt';
-              const color = colorMap[tx.category] || '#10b981';
-              
-              // Format date properly
+              const icon = getIconForCategory(tx.category);
+              const color = getColorForCategory(tx.category);
               const d = new Date(tx.date);
               const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -96,14 +133,38 @@ export default function Home() {
         </View>
       </ScrollView>
 
+      {/* FAB Modal Overlay */}
+      <Modal visible={fabOpen} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setFabOpen(false)}>
+          <View style={styles.fabMenu}>
+            <FabMenuItem icon="scan" color="#8b5cf6" label="Scan Receipt" onPress={() => { setFabOpen(false); alert('Receipt Scanner coming in V2'); }} />
+            <FabMenuItem icon="cart" color="#f59e0b" label="Add Grocery" onPress={() => { setFabOpen(false); router.push({ pathname: '/add-expense', params: { category: 'Groceries' }}); }} />
+            <FabMenuItem icon="fast-food" color="#ef4444" label="Add Food" onPress={() => { setFabOpen(false); router.push({ pathname: '/add-expense', params: { category: 'Food' }}); }} />
+            <FabMenuItem icon="phone-portrait" color="#3b82f6" label="Add Recharge" onPress={() => { setFabOpen(false); router.push({ pathname: '/add-expense', params: { category: 'Recharge' }}); }} />
+            <FabMenuItem icon="add" color="#10b981" label="Custom Expense" onPress={() => { setFabOpen(false); router.push('/add-expense'); }} />
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Floating Action Button */}
       <TouchableOpacity 
         style={styles.fab}
-        onPress={() => router.push('/add-expense')}
+        onPress={() => setFabOpen(true)}
       >
         <Ionicons name="add" size={32} color="#ffffff" />
       </TouchableOpacity>
     </View>
+  );
+}
+
+function FabMenuItem({ icon, color, label, onPress }: any) {
+  return (
+    <TouchableOpacity style={styles.fabMenuItem} onPress={onPress}>
+      <Text style={styles.fabMenuLabel}>{label}</Text>
+      <View style={[styles.fabMenuIconCircle, { backgroundColor: color }]}>
+        <Ionicons name={icon} size={20} color="#fff" />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -149,6 +210,11 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 20, fontWeight: '700' },
   seeAll: { color: '#10b981', fontWeight: '600' },
+  statsScroll: { marginBottom: 32, overflow: 'visible' },
+  statChip: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingRight: 24, borderRadius: 16, marginRight: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
+  statIconContainer: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  statCatName: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
+  statCatAmount: { fontSize: 15, fontWeight: '800', color: '#10b981' },
   transactionsCard: { borderRadius: 20, padding: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
   cardLight: { backgroundColor: '#ffffff' },
   cardDark: { backgroundColor: '#1f2937' },
@@ -168,4 +234,9 @@ const styles = StyleSheet.create({
   badgeTextPrivate: { color: '#f97316' },
   txAmount: { fontSize: 16, fontWeight: '700' },
   fab: { position: 'absolute', bottom: 24, right: 24, width: 64, height: 64, borderRadius: 32, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#10b981', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', alignItems: 'flex-end', paddingBottom: 100, paddingRight: 32 },
+  fabMenu: { alignItems: 'flex-end', gap: 16 },
+  fabMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  fabMenuLabel: { color: '#ffffff', fontSize: 16, fontWeight: '600', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, overflow: 'hidden' },
+  fabMenuIconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', elevation: 4 },
 });
