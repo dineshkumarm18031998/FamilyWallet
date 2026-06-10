@@ -19,6 +19,13 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
       userId TEXT NOT NULL
     );
   `);
+
+  try {
+    // Migrate old databases seamlessly
+    await db.execAsync("ALTER TABLE expenses ADD COLUMN source TEXT DEFAULT 'Manual';");
+  } catch (e) {
+    // Column already exists, ignore
+  }
 };
 
 export const addExpense = async (db: SQLite.SQLiteDatabase, amount: number, merchant: string, category: string, visibility: string, notes: string, source: string = 'Manual') => {

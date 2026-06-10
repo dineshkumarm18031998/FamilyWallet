@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getCategoryTotals } from '../../utils/database';
+import { getCategoryTotals } from '../utils/database';
 import { useFocusEffect } from 'expo-router';
 
 // Mock Budget targets. In V2, these come from backend/sqlite table.

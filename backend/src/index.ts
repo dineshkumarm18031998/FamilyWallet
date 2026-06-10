@@ -62,7 +62,8 @@ app.post('/api/family/create', async (req, res) => {
         members: {
           create: { userId, role: 'Owner' }
         }
-      }
+      },
+      include: { members: true }
     });
     // Also update user record
     await prisma.user.update({
