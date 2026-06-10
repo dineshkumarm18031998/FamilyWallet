@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now())
+
+  familyMembers FamilyMember[]
+  expenses      Expense[]
+  settings      Settings?
+}
+
+model Family {
+  id         String   @id @default(uuid())
+  name       String
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+
+  members  FamilyMember[]
+  expenses Expense[]
+}
+
+model FamilyMember {
+  id       String @id @default(uuid())
+  userId   String
+  familyId String
+  role     String @default("Member") // "Owner", "Admin", "Member"
+
+  user   User   @relation(fields: [userId], references: [id])
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@unique([userId, familyId])
+}
+
+model Expense {
+  id         String   @id @default(uuid())
+  amount     Float
+  merchant   String
+  category   String
+  visibility String   // "Shared" or "Private"
+  date       DateTime @default(now())
+  notes      String?
+  source     String   @default("Manual") // "Manual", "SMS", "OCR"
+
+  userId   String
+  familyId String?
+
+  user   User    @relation(fields: [userId], references: [id])
+  family Family? @relation(fields: [familyId], references: [id])
+}
+
+model Settings {
+  id                  String  @id @default(uuid())
+  userId              String  @unique
+  autoShareGroceries  Boolean @default(true)
+  autoShareFood       Boolean @default(true)
+  autoShareRecharge   Boolean @default(true)
+  darkMode            Boolean @default(false)
+  language            String  @default("English")
+
+  user User @relation(fields: [userId], references: [id])
+}
