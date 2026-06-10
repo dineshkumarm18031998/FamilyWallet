@@ -73,6 +73,24 @@ export default function Home() {
           </View>
         </View>
 
+        {/* Feature Links */}
+        <View style={styles.featureLinksRow}>
+          <TouchableOpacity style={[styles.featureBtn, isDark ? styles.cardDark : styles.cardLight]} onPress={() => router.push('/review-inbox')}>
+            <View style={[styles.featureIconBox, { backgroundColor: '#f59e0b20' }]}>
+              <Ionicons name="mail-unread" size={20} color="#f59e0b" />
+            </View>
+            <Text style={[styles.featureBtnText, isDark ? styles.textLight : styles.textDark]}>Review Inbox</Text>
+            <View style={styles.badgeCount}><Text style={styles.badgeCountText}>2</Text></View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.featureBtn, isDark ? styles.cardDark : styles.cardLight]} onPress={() => router.push('/budgets')}>
+            <View style={[styles.featureIconBox, { backgroundColor: '#3b82f620' }]}>
+              <Ionicons name="pie-chart" size={20} color="#3b82f6" />
+            </View>
+            <Text style={[styles.featureBtnText, isDark ? styles.textLight : styles.textDark]}>Budgets</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Quick Stats */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Quick Stats</Text>
@@ -199,7 +217,7 @@ const styles = StyleSheet.create({
   profileBtn: { padding: 4 },
   textLight: { color: '#f9fafb' },
   textDark: { color: '#1f2937' },
-  walletsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, marginBottom: 32 },
+  walletsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, marginBottom: 24 },
   card: { flex: 1, padding: 20, borderRadius: 24, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
   familyCard: { backgroundColor: '#10b981' },
   personalCard: { backgroundColor: '#f97316' },
@@ -207,6 +225,14 @@ const styles = StyleSheet.create({
   cardLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600', marginBottom: 8 },
   cardAmount: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 4 },
   cardSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
+  
+  featureLinksRow: { flexDirection: 'row', gap: 12, marginBottom: 32 },
+  featureBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
+  featureIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  featureBtnText: { fontSize: 14, fontWeight: '700', flex: 1 },
+  badgeCount: { backgroundColor: '#ef4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  badgeCountText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 20, fontWeight: '700' },
   seeAll: { color: '#10b981', fontWeight: '600' },

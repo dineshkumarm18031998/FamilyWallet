@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSQLiteContext } from 'expo-sqlite';
+import { setSession } from '../utils/database';
 
 export default function OTPScreen() {
   const { phone } = useLocalSearchParams();
@@ -10,10 +12,31 @@ export default function OTPScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const handleVerify = () => {
-    // For V1 local dev, accept '123456' or just any 6 digits
+  const db = useSQLiteContext();
+  const [loading, setLoading] = useState(false);
+
+  const handleVerify = async () => {
     if (otp.length === 6) {
-      router.replace('/onboarding');
+      setLoading(true);
+      try {
+        const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, otp })
+        });
+        const data = await res.json();
+        
+        if (data.success && data.token) {
+          await setSession(db, data.token);
+          router.replace('/onboarding');
+        } else {
+          alert('Verification failed: ' + data.error);
+        }
+      } catch (err) {
+        alert('Network error. Check connection.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -48,9 +71,9 @@ export default function OTPScreen() {
         <TouchableOpacity 
           style={[styles.button, otp.length === 6 ? styles.buttonActive : styles.buttonInactive]} 
           onPress={handleVerify}
-          disabled={otp.length < 6}
+          disabled={otp.length < 6 || loading}
         >
-          <Text style={styles.buttonText}>Verify & Login</Text>
+          <Text style={styles.buttonText}>{loading ? 'Verifying...' : 'Verify & Login'}</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.resendButton}>

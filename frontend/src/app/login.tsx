@@ -9,9 +9,28 @@ export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const handleLogin = () => {
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
     if (phone.length >= 10) {
-      router.push({ pathname: '/otp', params: { phone } });
+      setLoading(true);
+      try {
+        const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        if (data.success) {
+          router.push({ pathname: '/otp', params: { phone } });
+        } else {
+          alert('Login failed: ' + data.error);
+        }
+      } catch (err) {
+        alert('Network error. Check your connection.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -45,9 +64,9 @@ export default function LoginScreen() {
         <TouchableOpacity 
           style={[styles.button, phone.length >= 10 ? styles.buttonActive : styles.buttonInactive]} 
           onPress={handleLogin}
-          disabled={phone.length < 10}
+          disabled={phone.length < 10 || loading}
         >
-          <Text style={styles.buttonText}>Get OTP</Text>
+          <Text style={styles.buttonText}>{loading ? 'Sending OTP...' : 'Get OTP'}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

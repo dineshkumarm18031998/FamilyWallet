@@ -11,19 +11,33 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
       visibility TEXT NOT NULL,
       date TEXT NOT NULL,
       notes TEXT,
+      source TEXT DEFAULT 'Manual',
       syncStatus TEXT DEFAULT 'Pending'
+    );
+    CREATE TABLE IF NOT EXISTS session (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      userId TEXT NOT NULL
     );
   `);
 };
 
-export const addExpense = async (db: SQLite.SQLiteDatabase, amount: number, merchant: string, category: string, visibility: string, notes: string) => {
+export const addExpense = async (db: SQLite.SQLiteDatabase, amount: number, merchant: string, category: string, visibility: string, notes: string, source: string = 'Manual') => {
   const date = new Date().toISOString();
   
   const result = await db.runAsync(
-    'INSERT INTO expenses (amount, merchant, category, visibility, date, notes, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [amount, merchant, category, visibility, date, notes, 'Pending']
+    'INSERT INTO expenses (amount, merchant, category, visibility, date, notes, source, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [amount, merchant, category, visibility, date, notes, source, 'Pending']
   );
   return result.lastInsertRowId;
+};
+
+export const setSession = async (db: SQLite.SQLiteDatabase, userId: string) => {
+  await db.runAsync('INSERT OR REPLACE INTO session (id, userId) VALUES (1, ?)', [userId]);
+};
+
+export const getSession = async (db: SQLite.SQLiteDatabase) => {
+  const row: any = await db.getFirstAsync('SELECT userId FROM session WHERE id = 1');
+  return row?.userId || null;
 };
 
 export const getRecentExpenses = async (db: SQLite.SQLiteDatabase, limit: number = 5) => {
@@ -56,8 +70,7 @@ export const syncWithCloud = async (db: SQLite.SQLiteDatabase) => {
     const pendingExpenses = await db.getAllAsync("SELECT * FROM expenses WHERE syncStatus = 'Pending'");
     if (pendingExpenses.length === 0) return { success: true, count: 0, message: 'Already up to date' };
 
-    // In a real app, this comes from Auth
-    const userId = "user_123_temp";
+    const userId = await getSession(db) || "user_123_temp";
 
     const response = await fetch('https://familywallet-production-a87d.up.railway.app/api/sync/push', {
       method: 'POST',
