@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { saveSession } from '../utils/database';
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -15,23 +18,29 @@ export default function LoginScreen() {
 
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (phone.length >= 10 && password.length >= 6) {
+  const handleRegister = async () => {
+    if (password !== confirmPassword) {
+      alert("Passwords do not match!");
+      return;
+    }
+
+    if (phone.length >= 10 && password.length >= 6 && name.length >= 2) {
       setLoading(true);
       try {
-        const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/auth/login', {
+        const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, password })
+          body: JSON.stringify({ phone, password, name })
         });
         const data = await res.json();
+        
         if (data.success) {
           // Save session token to local SQLite database
           await saveSession(db, data.token);
           // Navigate immediately to the Dashboard
           router.replace('/(tabs)');
         } else {
-          alert('Login failed: ' + data.error);
+          alert('Registration failed: ' + data.error);
         }
       } catch (err) {
         alert('Network error. Check your connection.');
@@ -41,18 +50,35 @@ export default function LoginScreen() {
     }
   };
 
+  const isFormValid = phone.length >= 10 && password.length >= 6 && password === confirmPassword && name.length >= 2;
+
   return (
     <KeyboardAvoidingView 
       style={[styles.container, isDark ? styles.darkBg : styles.lightBg]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <Ionicons name="wallet" size={80} color="#10b981" />
+      <ScrollView contentContainerStyle={styles.content}>
+        
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
+        </TouchableOpacity>
+
+        <View style={styles.header}>
           <Text style={[styles.title, isDark ? styles.textLight : styles.textDark]}>
-            Family<Text style={styles.highlight}>Wallet</Text>
+            Create Account
           </Text>
-          <Text style={styles.subtitle}>Smart expense sharing for families</Text>
+          <Text style={styles.subtitle}>Join FamilyWallet today</Text>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Full Name</Text>
+          <TextInput
+            style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+            placeholder="John Doe"
+            placeholderTextColor="#9ca3af"
+            value={name}
+            onChangeText={setName}
+          />
         </View>
 
         <View style={styles.inputContainer}>
@@ -72,7 +98,7 @@ export default function LoginScreen() {
           <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Password</Text>
           <TextInput
             style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-            placeholder="Enter your password"
+            placeholder="At least 6 characters"
             placeholderTextColor="#9ca3af"
             secureTextEntry
             value={password}
@@ -80,20 +106,32 @@ export default function LoginScreen() {
           />
         </View>
 
+        <View style={styles.inputContainer}>
+          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Confirm Password</Text>
+          <TextInput
+            style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+            placeholder="Re-type your password"
+            placeholderTextColor="#9ca3af"
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+        </View>
+
         <TouchableOpacity 
-          style={[styles.button, phone.length >= 10 && password.length >= 6 ? styles.buttonActive : styles.buttonInactive]} 
-          onPress={handleLogin}
-          disabled={phone.length < 10 || password.length < 6 || loading}
+          style={[styles.button, isFormValid ? styles.buttonActive : styles.buttonInactive]} 
+          onPress={handleRegister}
+          disabled={!isFormValid || loading}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Log In</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign Up</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.registerLink} onPress={() => router.push('/register')}>
-          <Text style={styles.registerText}>
-            Don't have an account? <Text style={styles.registerHighlight}>Sign Up</Text>
+        <TouchableOpacity style={styles.loginLink} onPress={() => router.push('/login')}>
+          <Text style={styles.loginText}>
+            Already have an account? <Text style={styles.loginHighlight}>Log In</Text>
           </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -102,10 +140,10 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   lightBg: { backgroundColor: '#f9fafb' },
   darkBg: { backgroundColor: '#111827' },
-  content: { flex: 1, padding: 24, justifyContent: 'center' },
-  logoContainer: { alignItems: 'center', marginBottom: 48 },
-  title: { fontSize: 36, fontWeight: '800', marginTop: 16, letterSpacing: -1 },
-  highlight: { color: '#f97316' }, 
+  content: { flexGrow: 1, padding: 24, justifyContent: 'center' },
+  backBtn: { position: 'absolute', top: 60, left: 24, zIndex: 10 },
+  header: { marginBottom: 40, marginTop: 40 },
+  title: { fontSize: 36, fontWeight: '800', letterSpacing: -1 },
   subtitle: { fontSize: 16, color: '#6b7280', marginTop: 8 },
   textDark: { color: '#1f2937' },
   textLight: { color: '#f3f4f6' },
@@ -126,7 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
     shadowColor: '#10b981',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -136,7 +174,7 @@ const styles = StyleSheet.create({
   buttonActive: { backgroundColor: '#10b981' }, 
   buttonInactive: { backgroundColor: '#9ca3af' },
   buttonText: { color: '#ffffff', fontSize: 18, fontWeight: '700' },
-  registerLink: { marginTop: 32, alignItems: 'center' },
-  registerText: { fontSize: 15, color: '#6b7280' },
-  registerHighlight: { color: '#10b981', fontWeight: '700' }
+  loginLink: { marginTop: 32, alignItems: 'center' },
+  loginText: { fontSize: 15, color: '#6b7280' },
+  loginHighlight: { color: '#10b981', fontWeight: '700' }
 });
