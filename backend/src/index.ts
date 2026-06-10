@@ -49,6 +49,97 @@ app.post('/api/auth/verify', async (req, res) => {
 });
 
 // ----------------------------------------------------
+// FAMILY API
+// ----------------------------------------------------
+app.post('/api/family/create', async (req, res) => {
+  const { userId, name } = req.body;
+  try {
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const family = await prisma.family.create({
+      data: {
+        name,
+        inviteCode,
+        members: {
+          create: { userId, role: 'Owner' }
+        }
+      }
+    });
+    // Also update user record
+    await prisma.user.update({
+      where: { id: userId },
+      data: { familyMembers: { connect: { id: family.members[0].id } } }
+    });
+    res.json({ success: true, family });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create family' });
+  }
+});
+
+app.post('/api/family/join', async (req, res) => {
+  const { userId, inviteCode } = req.body;
+  try {
+    const family = await prisma.family.findUnique({ where: { inviteCode } });
+    if (!family) return res.status(404).json({ error: 'Invalid invite code' });
+
+    const member = await prisma.familyMember.create({
+      data: { userId, familyId: family.id, role: 'Member' }
+    });
+    res.json({ success: true, family });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to join family' });
+  }
+});
+
+app.get('/api/family/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const member = await prisma.familyMember.findFirst({
+      where: { userId },
+      include: {
+        family: {
+          include: {
+            members: { include: { user: true } },
+            expenses: { where: { visibility: 'Shared' } }
+          }
+        }
+      }
+    });
+    
+    if (!member) {
+      return res.json({ hasFamily: false });
+    }
+
+    // Calculate totals
+    const family = member.family;
+    const sharedTotal = family.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    
+    const formattedMembers = family.members.map(m => {
+      const spent = family.expenses.filter(e => e.userId === m.userId).reduce((s, e) => s + e.amount, 0);
+      return {
+        id: m.id,
+        userId: m.userId,
+        name: m.user.phone, // fallback to phone if no name
+        role: m.role,
+        spent
+      };
+    });
+
+    res.json({
+      hasFamily: true,
+      data: {
+        id: family.id,
+        name: family.name,
+        code: family.inviteCode,
+        sharedTotal,
+        members: formattedMembers
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch family' });
+  }
+});
+
+// ----------------------------------------------------
 // SYNC API - PUSH (Mobile -> Cloud)
 // ----------------------------------------------------
 app.post('/api/sync/push', async (req, res) => {

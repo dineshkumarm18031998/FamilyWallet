@@ -1,33 +1,84 @@
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { getSession } from '../../utils/database';
 
 export default function Family() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const db = useSQLiteContext();
 
-  // State: 'no_family', 'create', 'join', 'dashboard'
-  const [viewState, setViewState] = useState('no_family');
+  const [viewState, setViewState] = useState('loading'); // 'loading', 'no_family', 'create', 'join', 'dashboard'
   const [familyName, setFamilyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [familyData, setFamilyData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Mock Family Data
-  const familyData = {
-    name: "Dinesh's Family",
-    code: "ABC123",
-    sharedTotal: 12450,
-    members: [
-      { id: 1, name: 'Dinesh (You)', role: 'Owner', spent: 8000 },
-      { id: 2, name: 'Wife', role: 'Member', spent: 4450 }
-    ]
+  useFocusEffect(
+    useCallback(() => {
+      fetchFamily();
+    }, [])
+  );
+
+  const fetchFamily = async () => {
+    setViewState('loading');
+    const userId = await getSession(db) || "user_123_temp";
+    try {
+      const res = await fetch(`https://familywallet-production-a87d.up.railway.app/api/family/${userId}`);
+      const data = await res.json();
+      if (data.hasFamily) {
+        setFamilyData(data.data);
+        setViewState('dashboard');
+      } else {
+        setViewState('no_family');
+      }
+    } catch (e) {
+      setViewState('no_family');
+    }
   };
 
-  const handleCreate = () => {
-    if (familyName) setViewState('dashboard');
+  const handleCreate = async () => {
+    if (!familyName) return;
+    setLoading(true);
+    const userId = await getSession(db) || "user_123_temp";
+    try {
+      const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/family/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, name: familyName })
+      });
+      const data = await res.json();
+      if (data.success) fetchFamily();
+    } catch (e) {
+      alert('Network Error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleJoin = () => {
-    if (inviteCode) setViewState('dashboard');
+  const handleJoin = async () => {
+    if (!inviteCode) return;
+    setLoading(true);
+    const userId = await getSession(db) || "user_123_temp";
+    try {
+      const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/family/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, inviteCode })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchFamily();
+      } else {
+        alert(data.error);
+      }
+    } catch (e) {
+      alert('Network Error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderNoFamily = () => (
@@ -65,8 +116,8 @@ export default function Family() {
         />
       </View>
 
-      <TouchableOpacity style={[styles.primaryBtn, { width: '100%', marginTop: 20 }]} onPress={handleCreate}>
-        <Text style={styles.primaryBtnText}>Create Family</Text>
+      <TouchableOpacity style={[styles.primaryBtn, { width: '100%', marginTop: 20 }]} onPress={handleCreate} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Create Family</Text>}
       </TouchableOpacity>
     </View>
   );
@@ -91,8 +142,8 @@ export default function Family() {
         />
       </View>
 
-      <TouchableOpacity style={[styles.primaryBtn, { width: '100%', marginTop: 20 }]} onPress={handleJoin}>
-        <Text style={styles.primaryBtnText}>Join Family</Text>
+      <TouchableOpacity style={[styles.primaryBtn, { width: '100%', marginTop: 20 }]} onPress={handleJoin} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Join Family</Text>}
       </TouchableOpacity>
     </View>
   );
@@ -144,10 +195,15 @@ export default function Family() {
 
   return (
     <View style={[styles.container, isDark ? styles.darkBg : styles.lightBg]}>
+      {viewState === 'loading' && (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#10b981" />
+        </View>
+      )}
       {viewState === 'no_family' && renderNoFamily()}
       {viewState === 'create' && renderCreate()}
       {viewState === 'join' && renderJoin()}
-      {viewState === 'dashboard' && renderDashboard()}
+      {viewState === 'dashboard' && familyData && renderDashboard()}
     </View>
   );
 }

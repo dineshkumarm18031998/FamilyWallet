@@ -13,16 +13,20 @@ export default function AddExpenseModal() {
 
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('Groceries');
   const [visibility, setVisibility] = useState('Shared'); // 'Shared' or 'Private'
+  const [source, setSource] = useState('Manual');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const CATEGORIES = ['Groceries', 'Food', 'Recharge', 'DTH', 'Shopping', 'Utilities', 'Rent', 'Fuel', 'Medicine', 'Education', 'Travel', 'Other'];
+  const SOURCES = ['Manual', 'SMS', 'Notification', 'OCR'];
 
   const handleSave = async () => {
     if (!amount || !merchant || !category) return;
     setLoading(true);
     try {
-      await addExpense(db, parseFloat(amount), merchant, category, visibility, notes);
+      await addExpense(db, parseFloat(amount), merchant, category, visibility, notes, source);
       router.back();
     } catch (e) {
       console.error(e);
@@ -75,19 +79,36 @@ export default function AddExpenseModal() {
           </View>
         </View>
 
-        {/* Category Input */}
+        {/* Category Selection */}
         <View style={styles.inputGroup}>
           <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Category</Text>
-          <View style={[styles.inputWrapper, isDark ? styles.inputWrapperDark : styles.inputWrapperLight]}>
-            <Ionicons name="pricetag-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, isDark ? styles.textLight : styles.textDark]}
-              placeholder="e.g. Food, Groceries"
-              placeholderTextColor="#9ca3af"
-              value={category}
-              onChangeText={setCategory}
-            />
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+            {CATEGORIES.map(cat => (
+              <TouchableOpacity 
+                key={cat} 
+                style={[styles.chip, category === cat ? styles.chipActive : (isDark ? styles.chipInactiveDark : styles.chipInactiveLight)]}
+                onPress={() => setCategory(cat)}
+              >
+                <Text style={[styles.chipText, category === cat ? styles.chipTextActive : (isDark ? styles.textLight : styles.textDark)]}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Source Selection */}
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Source</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+            {SOURCES.map(src => (
+              <TouchableOpacity 
+                key={src} 
+                style={[styles.chip, source === src ? styles.chipActive : (isDark ? styles.chipInactiveDark : styles.chipInactiveLight)]}
+                onPress={() => setSource(src)}
+              >
+                <Text style={[styles.chipText, source === src ? styles.chipTextActive : (isDark ? styles.textLight : styles.textDark)]}>{src}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Visibility Toggle */}
@@ -162,4 +183,11 @@ const styles = StyleSheet.create({
   toggleActiveShared: { backgroundColor: '#10b981', elevation: 2 },
   toggleActivePrivate: { backgroundColor: '#f97316', elevation: 2 },
   toggleText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  chipsScroll: { flexDirection: 'row', paddingVertical: 4 },
+  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, marginRight: 10, borderWidth: 1 },
+  chipActive: { backgroundColor: '#10b981', borderColor: '#10b981' },
+  chipInactiveLight: { backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' },
+  chipInactiveDark: { backgroundColor: '#374151', borderColor: '#4b5563' },
+  chipText: { fontSize: 14, fontWeight: '600' },
+  chipTextActive: { color: '#ffffff' },
 });
