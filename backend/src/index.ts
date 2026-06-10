@@ -14,6 +14,41 @@ app.get('/', (req, res) => {
 });
 
 // ----------------------------------------------------
+// AUTH API
+// ----------------------------------------------------
+app.post('/api/auth/login', async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ error: 'Phone number required' });
+  
+  try {
+    let user = await prisma.user.findUnique({ where: { phone } });
+    if (!user) {
+      user = await prisma.user.create({ data: { phone } });
+    }
+    // Mocking real SMS dispatch
+    res.json({ success: true, message: 'OTP sent' });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.post('/api/auth/verify', async (req, res) => {
+  const { phone, otp } = req.body;
+  if (!phone || !otp) return res.status(400).json({ error: 'Missing phone or OTP' });
+  
+  if (otp !== '123456') return res.status(401).json({ error: 'Invalid OTP' });
+
+  try {
+    const user = await prisma.user.findUnique({ where: { phone } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ success: true, token: user.id });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ----------------------------------------------------
 // SYNC API - PUSH (Mobile -> Cloud)
 // ----------------------------------------------------
 app.post('/api/sync/push', async (req, res) => {
