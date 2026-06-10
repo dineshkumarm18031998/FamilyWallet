@@ -45,3 +45,30 @@ export const getWalletTotals = async (db: SQLite.SQLiteDatabase) => {
     privateTotal: privateResult?.total || 0
   };
 };
+
+export const syncWithCloud = async (db: SQLite.SQLiteDatabase) => {
+  try {
+    const pendingExpenses = await db.getAllAsync("SELECT * FROM expenses WHERE syncStatus = 'Pending'");
+    if (pendingExpenses.length === 0) return { success: true, count: 0, message: 'Already up to date' };
+
+    // In a real app, this comes from Auth
+    const userId = "user_123_temp";
+
+    // Use your computer's local IP or localhost for testing
+    const response = await fetch('http://localhost:3000/api/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, expenses: pendingExpenses })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      await db.runAsync("UPDATE expenses SET syncStatus = 'Synced' WHERE syncStatus = 'Pending'");
+      return { success: true, count: result.syncedCount, message: `Successfully synced ${result.syncedCount} expenses` };
+    }
+    return { success: false, message: 'Server returned an error' };
+  } catch (error) {
+    console.error('Sync Error:', error);
+    return { success: false, message: 'Network error. Make sure backend is running.' };
+  }
+};

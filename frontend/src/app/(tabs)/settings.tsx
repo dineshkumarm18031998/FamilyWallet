@@ -1,16 +1,20 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
+import { useSQLiteContext } from 'expo-sqlite';
+import { syncWithCloud } from '../../utils/database';
 
 export default function Settings() {
+  const db = useSQLiteContext();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const [autoShare, setAutoShare] = useState(true);
   const [darkMode, setDarkMode] = useState(isDark);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const SettingRow = ({ icon, label, type = 'link', value, onToggle }: any) => (
-    <TouchableOpacity style={[styles.settingRow, isDark ? styles.borderDark : styles.borderLight]} disabled={type === 'toggle'}>
+    <TouchableOpacity style={[styles.settingRow, isDark ? styles.borderDark : styles.borderLight]} disabled={type === 'toggle'} onPress={type === 'action' ? onToggle : undefined}>
       <View style={styles.settingRowLeft}>
         <View style={styles.iconContainer}>
           <Ionicons name={icon} size={20} color="#6b7280" />
@@ -18,6 +22,7 @@ export default function Settings() {
         <Text style={[styles.settingLabel, isDark ? styles.textLight : styles.textDark]}>{label}</Text>
       </View>
       {type === 'link' && <Ionicons name="chevron-forward" size={20} color="#9ca3af" />}
+      {type === 'action' && <Ionicons name="arrow-forward" size={20} color="#9ca3af" />}
       {type === 'toggle' && (
         <Switch
           trackColor={{ false: '#d1d5db', true: '#10b981' }}
@@ -30,13 +35,26 @@ export default function Settings() {
     </TouchableOpacity>
   );
 
+  const handleSync = async () => {
+    setIsSyncing(true);
+    const result = await syncWithCloud(db);
+    setIsSyncing(false);
+    
+    // In web environment Alert doesn't work perfectly out of the box, but we can fallback to console or window.alert
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert(result.message);
+    } else {
+      Alert.alert('Sync Status', result.message);
+    }
+  };
+
   return (
     <ScrollView style={[styles.container, isDark ? styles.darkBg : styles.lightBg]} contentContainerStyle={styles.scrollContent}>
+      {/* ... previous code remains the same until Data & Sync ... */}
       <View style={styles.header}>
         <Text style={[styles.title, isDark ? styles.textLight : styles.textDark]}>Settings</Text>
       </View>
 
-      {/* Profile Section */}
       <View style={[styles.profileCard, isDark ? styles.cardDark : styles.cardLight]}>
         <View style={styles.profileAvatar}>
           <Text style={styles.avatarText}>D</Text>
@@ -50,7 +68,6 @@ export default function Settings() {
         </TouchableOpacity>
       </View>
 
-      {/* Sections */}
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Privacy & Sharing</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
         <SettingRow icon="share-social-outline" label="Auto-Share Groceries" type="toggle" value={autoShare} onToggle={setAutoShare} />
@@ -66,7 +83,15 @@ export default function Settings() {
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Data & Sync</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <SettingRow icon="cloud-upload-outline" label="Sync Now" />
+        <TouchableOpacity style={[styles.settingRow, isDark ? styles.borderDark : styles.borderLight]} onPress={handleSync} disabled={isSyncing}>
+          <View style={styles.settingRowLeft}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="cloud-upload-outline" size={20} color="#6b7280" />
+            </View>
+            <Text style={[styles.settingLabel, isDark ? styles.textLight : styles.textDark]}>Sync Now</Text>
+          </View>
+          {isSyncing ? <ActivityIndicator color="#10b981" /> : <Ionicons name="arrow-forward" size={20} color="#9ca3af" />}
+        </TouchableOpacity>
         <SettingRow icon="download-outline" label="Export CSV" />
         <SettingRow icon="refresh-outline" label="Restore Backup" />
       </View>
