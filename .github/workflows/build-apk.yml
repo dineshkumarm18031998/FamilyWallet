@@ -41,7 +41,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
           GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1024m"
-        run: ./gradlew assembleRelease -x lintVitalRelease
+        run: ./gradlew assembleRelease -x lintVitalRelease -Pandroid.compileSdkVersion=34 -Pandroid.targetSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
