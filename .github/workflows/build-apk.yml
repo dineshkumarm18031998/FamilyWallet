@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -31,6 +31,10 @@ jobs:
       - name: Expo Prebuild
         working-directory: ./frontend
         run: npx expo prebuild -p android --clean
+
+      - name: Fix Ninja Timestamps
+        working-directory: ./frontend
+        run: find . -type f -exec touch {} +
 
       - name: Build APK
         working-directory: ./frontend/android
