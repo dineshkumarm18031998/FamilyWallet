@@ -39,8 +39,8 @@ jobs:
       - name: Build APK
         working-directory: ./frontend/android
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
-          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1024m"
+          NODE_OPTIONS: --max-old-space-size=3072
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m"
         run: ./gradlew assembleRelease -x lintVitalRelease -Pandroid.compileSdkVersion=34 -Pandroid.targetSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0 -Pandroid.ndkVersion=26.1.10909125
 
       - name: Upload APK
