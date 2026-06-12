@@ -1,10 +1,12 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const tintColor = isDark ? '#10b981' : '#059669'; // Emerald Green
   const bgColor = isDark ? '#1f2937' : '#ffffff';
@@ -23,7 +25,8 @@ export default function TabLayout() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
-          paddingBottom: 5,
+          paddingBottom: Math.max(insets.bottom, 5),
+          height: 60 + Math.max(insets.bottom, 0),
           paddingTop: 5,
         },
         tabBarLabelStyle: {

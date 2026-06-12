@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Modal, Pressable, PermissionsAndroid, Platform, Alert, Linking, IntentLauncherAndroid } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ export default function Home() {
   const [totals, setTotals] = useState({ sharedTotal: 0, privateTotal: 0 });
   const [categoryStats, setCategoryStats] = useState<any[]>([]);
   const [fabOpen, setFabOpen] = useState(false);
+  const [reviewCount, setReviewCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -27,10 +28,38 @@ export default function Home() {
         setTotals(t);
         const stats = await getCategoryTotals(db);
         setCategoryStats(stats as any[]);
+        
+        // Dynamic Review Queue Count
+        try {
+          const res: any = await db.getFirstAsync("SELECT COUNT(*) as count FROM review_queue WHERE status = 'Pending'");
+          setReviewCount(res?.count || 0);
+        } catch(e) {}
       };
       loadData();
     }, [db])
   );
+
+  useEffect(() => {
+    async function requestPermissions() {
+      if (Platform.OS === 'android') {
+        try {
+          const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.READ_SMS,
+            PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+          ]);
+          
+          if (granted[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] === PermissionsAndroid.RESULTS.GRANTED) {
+            // Check if Notification Listener is enabled? We can't directly check easily in JS,
+            // but we can prompt the user gently.
+            // For V1, we will just add a button in settings to open it, or alert them once.
+          }
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+    }
+    requestPermissions();
+  }, []);
 
   const getIconForCategory = (cat: string) => {
     const map: any = { Food: 'fast-food', Groceries: 'cart', Recharge: 'phone-portrait', DTH: 'tv', Shopping: 'bag', Utilities: 'flash', Rent: 'home', Fuel: 'car', Medicine: 'medkit', Education: 'school', Travel: 'airplane' };
@@ -82,7 +111,11 @@ export default function Home() {
               <Ionicons name="mail-unread" size={20} color="#f59e0b" />
             </View>
             <Text style={[styles.featureBtnText, isDark ? styles.textLight : styles.textDark]}>Review Inbox</Text>
-            <View style={styles.badgeCount}><Text style={styles.badgeCountText}>2</Text></View>
+            {reviewCount > 0 && (
+              <View style={styles.badgeCount}>
+                <Text style={styles.badgeCountText}>{reviewCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.featureBtn, isDark ? styles.cardDark : styles.cardLight]} onPress={() => router.push('/budgets')}>

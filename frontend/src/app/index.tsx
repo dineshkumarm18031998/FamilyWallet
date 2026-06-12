@@ -1,26 +1,32 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
+import { useSQLiteContext } from 'expo-sqlite';
+import { getSession } from '../utils/database';
 
 export default function Index() {
   const router = useRouter();
+  const db = useSQLiteContext();
   
   useEffect(() => {
-    // For V1, we simply navigate to the login screen
-    const isAuthenticated = false; // Mock state
-    
-    // Give it a tiny tick to ensure layout is mounted
-    setTimeout(() => {
-      if (!isAuthenticated) {
+    async function checkAuth() {
+      try {
+        const userId = await getSession(db);
+        if (userId) {
+          router.replace('/(tabs)');
+        } else {
+          router.replace('/login');
+        }
+      } catch (e) {
+        console.error(e);
         router.replace('/login');
-      } else {
-        router.replace('/(tabs)');
       }
-    }, 100);
-  }, []);
+    }
+    checkAuth();
+  }, [db]);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111827' }}>
       <ActivityIndicator size="large" color="#10b981" />
     </View>
   );

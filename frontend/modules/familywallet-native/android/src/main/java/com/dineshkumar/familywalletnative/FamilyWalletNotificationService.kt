@@ -50,8 +50,30 @@ class FamilyWalletNotificationService : NotificationListenerService() {
         val title = extras.getString("android.title") ?: ""
         val text = extras.getCharSequence("android.text")?.toString() ?: ""
 
-        Log.d("FamilyWalletNative", "Detected Whitelisted Notification: [$packageName] $title")
+        Log.d("FamilyWalletNative", "Detected Whitelisted Notification: [$packageName] Title: $title | Text: $text")
 
-        // TODO: Send exact Amount/Merchant data to React Native layer for Review Queue
+        // Parse amount based on app type
+        val amountRegex = Regex("(?i)(?:Rs\\.?|INR|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)")
+        val matchResult = amountRegex.find(text) ?: amountRegex.find(title)
+        
+        if (matchResult != null) {
+            val amountStr = matchResult.groupValues[1].replace(",", "")
+            val amount = amountStr.toDoubleOrNull() ?: return
+
+            // Assign Category based on Package
+            val category = when (packageName) {
+                "in.swiggy.android", "com.application.zomato", "com.eatsure.app" -> "Food"
+                "com.zepto", "com.grofers.customerapp", "com.bigbasket.mobileapp" -> "Groceries"
+                else -> "Shopping"
+            }
+
+            var merchantName = title.take(20) // Simple fallback
+            if (packageName.contains("swiggy", true)) merchantName = "Swiggy"
+            if (packageName.contains("zomato", true)) merchantName = "Zomato"
+            if (packageName.contains("google", true) || packageName.contains("phonepe", true)) merchantName = "UPI Transfer"
+
+            // Dispatch to React Native SQLite
+            FamilywalletNativeModule.dispatchExpenseEvent(amount, merchantName, category, "Notification")
+        }
     }
 }

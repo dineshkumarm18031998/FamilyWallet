@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch, Alert, ActivityIndicator, Appearance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { syncWithCloud, clearSession } from '../../utils/database';
@@ -122,7 +122,16 @@ export default function Settings() {
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Appearance</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <SettingRow icon="moon-outline" label="Dark Mode" type="toggle" value={darkMode} onToggle={setDarkMode} />
+        <SettingRow 
+          icon="moon-outline" 
+          label="Dark Mode" 
+          type="toggle" 
+          value={darkMode} 
+          onToggle={(v: boolean) => {
+            setDarkMode(v);
+            Appearance.setColorScheme(v ? 'dark' : 'light');
+          }} 
+        />
         <SettingRow icon="language-outline" label="Language" type="text" value="English" />
       </View>
 

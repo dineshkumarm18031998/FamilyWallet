@@ -24,10 +24,8 @@ export default function AnimatedSplashScreen({ onAnimationFinish }: Props) {
   const rotation = useSharedValue(0);
 
   useEffect(() => {
-    // Fade in the logo
-    opacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.exp) });
-    // Scale up the logo with a bounce
-    scale.value = withTiming(1, { duration: 1000, easing: Easing.elastic(1.2) });
+    // Logo is already visible from native splash. Fade in the ring.
+    opacity.value = withTiming(1, { duration: 800 });
 
     // Start infinite rotation for the loading ring
     rotation.value = withRepeat(
@@ -49,15 +47,16 @@ export default function AnimatedSplashScreen({ onAnimationFinish }: Props) {
 
   const logoAnimatedStyle = useAnimatedStyle(() => {
     return {
-      opacity: opacity.value,
-      transform: [{ scale: scale.value }],
+      // Logo doesn't animate, it stays put while the ring spins
+      opacity: 1,
+      transform: [{ scale: 1 }],
     };
   });
 
   const ringAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: opacity.value,
-      transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
+      transform: [{ rotateZ: `${rotation.value}deg` }],
     };
   });
 
@@ -68,7 +67,7 @@ export default function AnimatedSplashScreen({ onAnimationFinish }: Props) {
   });
 
   return (
-    <Animated.View style={[styles.container, containerAnimatedStyle]}>
+    <Animated.View style={[styles.container, containerAnimatedStyle]} pointerEvents="none">
       <View style={styles.logoContainer}>
         {/* The spinning loading ring */}
         <Animated.View style={[styles.loaderRing, ringAnimatedStyle]} />
@@ -84,6 +83,9 @@ export default function AnimatedSplashScreen({ onAnimationFinish }: Props) {
   );
 }
 
+const LOGO_SIZE = 150;
+const RING_SIZE = 180;
+
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
@@ -93,8 +95,8 @@ const styles = StyleSheet.create({
     zIndex: 9999, // Ensure it's on top of everything
   },
   logoContainer: {
-    width: width * 0.6,
-    height: width * 0.6,
+    width: RING_SIZE,
+    height: RING_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -102,16 +104,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '100%',
     height: '100%',
-    borderRadius: (width * 0.6) / 2,
+    borderRadius: RING_SIZE / 2,
     borderWidth: 4,
     borderColor: '#10b981', // Emerald green loader
     borderTopColor: 'transparent',
     borderRightColor: 'transparent',
   },
   logo: {
-    width: width * 0.45,
-    height: width * 0.45,
-    borderRadius: (width * 0.45) / 2, // Circular fit
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: LOGO_SIZE / 2, // Circular fit
     overflow: 'hidden',
   },
 });
