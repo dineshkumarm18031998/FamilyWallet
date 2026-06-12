@@ -66,9 +66,14 @@ export default function RootLayout() {
     <View style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <SQLiteProvider databaseName="familywallet.db" onInit={initDB}>
-          <Stack screenOptions={{ headerShown: false }}>
+          <Stack screenOptions={{ 
+            headerShown: false,
+            animation: 'fade', // Prevents violent sliding/flickering
+            contentStyle: { backgroundColor: colorScheme === 'dark' ? '#111827' : '#f9fafb' }
+          }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="login" />
+            <Stack.Screen name="register" />
             <Stack.Screen name="otp" />
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="add-expense" options={{ presentation: 'modal' }} />
