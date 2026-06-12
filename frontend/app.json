@@ -13,13 +13,13 @@
     },
     "android": {
       "package": "com.dinesh.familywallet.v3",
-      "permissions": [],
+      "permissions": ["RECEIVE_SMS", "READ_SMS"],
       "adaptiveIcon": {
         "backgroundColor": "#111827",
         "foregroundImage": "./assets/images/logo.png"
       },
       "predictiveBackGestureEnabled": false,
-      "versionCode": 5
+      "versionCode": 6
     },
     "web": {
       "output": "static",

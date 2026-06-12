@@ -49,9 +49,22 @@ export default function Home() {
           ]);
           
           if (granted[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] === PermissionsAndroid.RESULTS.GRANTED) {
-            // Check if Notification Listener is enabled? We can't directly check easily in JS,
-            // but we can prompt the user gently.
-            // For V1, we will just add a button in settings to open it, or alert them once.
+            // Prompt for Notification Service
+            Alert.alert(
+              "Enable Auto-Detect",
+              "To auto-detect expenses from GPay/PhonePe/Swiggy notifications, please allow Notification Access for FamilyWallet in the next screen.",
+              [
+                { text: "Cancel", style: "cancel" },
+                { 
+                  text: "Allow", 
+                  onPress: () => {
+                    import('../../modules/familywallet-native/src/FamilywalletNativeModule').then(m => {
+                      m.default.openNotificationSettings();
+                    });
+                  }
+                }
+              ]
+            );
           }
         } catch (err) {
           console.warn(err);

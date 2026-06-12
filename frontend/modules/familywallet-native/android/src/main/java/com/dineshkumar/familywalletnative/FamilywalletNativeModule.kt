@@ -32,5 +32,18 @@ class FamilywalletNativeModule : Module() {
     OnDestroy {
       instance = null
     }
+
+    Function("openNotificationSettings") {
+      try {
+        val intent = android.content.Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+      } catch (e: Exception) {
+        // Fallback to general settings
+        val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+      }
+    }
   }
 }
