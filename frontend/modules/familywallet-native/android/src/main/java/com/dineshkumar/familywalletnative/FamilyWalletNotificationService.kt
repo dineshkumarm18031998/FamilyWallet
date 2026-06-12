@@ -50,30 +50,21 @@ class FamilyWalletNotificationService : NotificationListenerService() {
         val title = extras.getString("android.title") ?: ""
         val text = extras.getCharSequence("android.text")?.toString() ?: ""
 
-        Log.d("FamilyWalletNative", "Detected Whitelisted Notification: [$packageName] Title: $title | Text: $text")
+        val fullText = "$title $text"
 
-        // Parse amount based on app type
-        val amountRegex = Regex("(?i)(?:Rs\\.?|INR|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)")
-        val matchResult = amountRegex.find(text) ?: amountRegex.find(title)
-        
-        if (matchResult != null) {
-            val amountStr = matchResult.groupValues[1].replace(",", "")
-            val amount = amountStr.toDoubleOrNull() ?: return
+        // Pass directly to the new Ultimate Auto Detection Engine
+        val parsed = ExpenseParser.parseMessage(packageName, fullText)
 
-            // Assign Category based on Package
-            val category = when (packageName) {
-                "in.swiggy.android", "com.application.zomato", "com.eatsure.app" -> "Food"
-                "com.zepto", "com.grofers.customerapp", "com.bigbasket.mobileapp" -> "Groceries"
-                else -> "Shopping"
-            }
-
-            var merchantName = title.take(20) // Simple fallback
-            if (packageName.contains("swiggy", true)) merchantName = "Swiggy"
-            if (packageName.contains("zomato", true)) merchantName = "Zomato"
-            if (packageName.contains("google", true) || packageName.contains("phonepe", true)) merchantName = "UPI Transfer"
-
-            // Dispatch to React Native SQLite
-            FamilywalletNativeModule.dispatchExpenseEvent(amount, merchantName, category, "Notification")
+        if (parsed != null) {
+            Log.d("FamilyWalletNative", "Parsed Notification: ${parsed.amount} at ${parsed.merchant} (${parsed.confidence}%)")
+            FamilywalletNativeModule.dispatchExpenseEvent(
+                parsed.amount, 
+                parsed.merchant, 
+                parsed.category, 
+                "Notification",
+                parsed.confidence,
+                parsed.preview
+            )
         }
     }
 }

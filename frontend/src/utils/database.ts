@@ -25,14 +25,17 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
       category TEXT NOT NULL,
       date TEXT NOT NULL,
       source TEXT NOT NULL,
-      status TEXT DEFAULT 'Pending'
+      status TEXT DEFAULT 'Pending',
+      confidence INTEGER DEFAULT 100,
+      preview TEXT,
+      timestamp INTEGER
     );
     CREATE TABLE IF NOT EXISTS tracking_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
-      trackGrocery INTEGER DEFAULT 1,
-      trackFood INTEGER DEFAULT 1,
-      trackRecharge INTEGER DEFAULT 1,
-      trackDTH INTEGER DEFAULT 1,
+      trackGrocery INTEGER DEFAULT 0,
+      trackFood INTEGER DEFAULT 0,
+      trackRecharge INTEGER DEFAULT 0,
+      trackDTH INTEGER DEFAULT 0,
       sharePrivateDetails INTEGER DEFAULT 0
     );
   `);
@@ -40,13 +43,16 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
   try {
     // Migrate old databases seamlessly
     await db.execAsync("ALTER TABLE expenses ADD COLUMN source TEXT DEFAULT 'Manual';");
+    await db.execAsync("ALTER TABLE review_queue ADD COLUMN confidence INTEGER DEFAULT 100;");
+    await db.execAsync("ALTER TABLE review_queue ADD COLUMN preview TEXT;");
+    await db.execAsync("ALTER TABLE review_queue ADD COLUMN timestamp INTEGER;");
   } catch (e) {
     // Column already exists, ignore
   }
 
   try {
-    // Initialize default tracking settings if empty
-    await db.execAsync("INSERT OR IGNORE INTO tracking_settings (id, trackGrocery, trackFood, trackRecharge, trackDTH, sharePrivateDetails) VALUES (1, 1, 1, 1, 1, 0);");
+    // Initialize default tracking settings if empty (Default OFF)
+    await db.execAsync("INSERT OR IGNORE INTO tracking_settings (id, trackGrocery, trackFood, trackRecharge, trackDTH, sharePrivateDetails) VALUES (1, 0, 0, 0, 0, 0);");
   } catch (e) {
     console.error(e);
   }

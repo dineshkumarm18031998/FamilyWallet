@@ -55,36 +55,45 @@ export default function ReviewInboxScreen() {
             <Text style={styles.emptySub}>No new auto-detected expenses.</Text>
           </View>
         ) : (
-          inbox.map(item => (
-            <View key={item.id} style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
-              <View style={styles.cardHeader}>
-                <View>
-                  <Text style={[styles.merchantName, isDark ? styles.textLight : styles.textDark]}>{item.merchant}</Text>
-                  <Text style={styles.sourceText}>Detected via {item.source}</Text>
+          inbox.map(item => {
+            const confidenceColor = item.confidence === 100 ? '#10b981' : item.confidence >= 75 ? '#f59e0b' : '#ef4444';
+            
+            return (
+              <View key={item.id} style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
+                <View style={styles.cardHeader}>
+                  <View>
+                    <Text style={[styles.merchantName, isDark ? styles.textLight : styles.textDark]}>{item.merchant}</Text>
+                    <Text style={styles.sourceText}>via {item.source}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.amountText}>₹{item.amount}</Text>
+                    <View style={[styles.confidenceBadge, { backgroundColor: confidenceColor + '20' }]}>
+                      <Text style={[styles.confidenceText, { color: confidenceColor }]}>{item.confidence}% Match</Text>
+                    </View>
+                  </View>
                 </View>
-                <Text style={styles.amountText}>₹{item.amount}</Text>
+
+                <View style={styles.suggestionBox}>
+                  <Ionicons name="bulb" size={16} color="#f59e0b" />
+                  <Text style={styles.suggestionText}>Suggested: <Text style={{fontWeight: '700'}}>{item.category}</Text></Text>
+                </View>
+
+                <Text style={styles.originalText}>"{item.preview || `Captured securely from ${item.source}`}"</Text>
+
+                <View style={styles.actionRow}>
+                  <TouchableOpacity style={[styles.actionBtn, styles.btnIgnore]} onPress={() => handleIgnore(item.id)}>
+                    <Ionicons name="close" size={20} color="#ef4444" />
+                    <Text style={styles.btnIgnoreText}>Ignore</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={[styles.actionBtn, styles.btnApprove]} onPress={() => handleApprove(item)}>
+                    <Ionicons name="checkmark" size={20} color="#ffffff" />
+                    <Text style={styles.btnApproveText}>Approve</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-
-              <View style={styles.suggestionBox}>
-                <Ionicons name="bulb" size={16} color="#f59e0b" />
-                <Text style={styles.suggestionText}>Suggested: <Text style={{fontWeight: '700'}}>{item.category}</Text> (Auto-Detected)</Text>
-              </View>
-
-              <Text style={styles.originalText}>"Captured securely from {item.source}"</Text>
-
-              <View style={styles.actionRow}>
-                <TouchableOpacity style={[styles.actionBtn, styles.btnIgnore]} onPress={() => handleIgnore(item.id)}>
-                  <Ionicons name="close" size={20} color="#ef4444" />
-                  <Text style={styles.btnIgnoreText}>Ignore</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.actionBtn, styles.btnApprove]} onPress={() => handleApprove(item)}>
-                  <Ionicons name="checkmark" size={20} color="#ffffff" />
-                  <Text style={styles.btnApproveText}>Approve</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -119,5 +128,7 @@ const styles = StyleSheet.create({
   btnIgnore: { backgroundColor: '#ef444420' },
   btnIgnoreText: { color: '#ef4444', fontWeight: '700', marginLeft: 6 },
   btnApprove: { backgroundColor: '#10b981' },
-  btnApproveText: { color: '#ffffff', fontWeight: '700', marginLeft: 6 }
+  btnApproveText: { color: '#ffffff', fontWeight: '700', marginLeft: 6 },
+  confidenceBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
+  confidenceText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' }
 });

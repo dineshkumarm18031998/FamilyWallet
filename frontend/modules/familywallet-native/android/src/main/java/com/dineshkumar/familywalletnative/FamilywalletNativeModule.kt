@@ -8,12 +8,14 @@ class FamilywalletNativeModule : Module() {
   companion object {
     var instance: FamilywalletNativeModule? = null
 
-    fun dispatchExpenseEvent(amount: Double, merchant: String, category: String, source: String) {
+    fun dispatchExpenseEvent(amount: Double, merchant: String, category: String, source: String, confidence: Int, preview: String) {
       instance?.sendEvent("onExpenseDetected", mapOf(
         "amount" to amount,
         "merchant" to merchant,
         "category" to category,
-        "source" to source
+        "source" to source,
+        "confidence" to confidence,
+        "preview" to preview
       ))
     }
   }
