@@ -1,29 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// Mock Pending Auto-Detected Expenses for V2 Demo
-const PENDING_EXPENSES = [
-  { id: '1', merchant: 'Swiggy', amount: 450, suggestedCategory: 'Food', source: 'SMS', confidence: 95, originalText: 'Paid INR 450.00 to Swiggy via HDFC Bank' },
-  { id: '2', merchant: 'Jio Prepaid', amount: 299, suggestedCategory: 'Recharge', source: 'Notification', confidence: 88, originalText: 'Recharge of ₹299 successful for Jio' }
-];
+import { useSQLiteContext } from 'expo-sqlite';
+import { addExpense } from '../utils/database';
 
 export default function ReviewInboxScreen() {
+  const db = useSQLiteContext();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [inbox, setInbox] = useState(PENDING_EXPENSES);
+  const [inbox, setInbox] = useState<any[]>([]);
 
-  const handleApprove = (id: string) => {
-    // In final, this calls `addExpense` to DB
-    setInbox(prev => prev.filter(item => item.id !== id));
+  useFocusEffect(
+    useCallback(() => {
+      const fetchQueue = async () => {
+        const rows = await db.getAllAsync("SELECT * FROM review_queue WHERE status = 'Pending' ORDER BY date DESC");
+        setInbox(rows);
+      };
+      fetchQueue();
+    }, [db])
+  );
+
+  const handleApprove = async (item: any) => {
+    // Save to real expenses table
+    await addExpense(db, item.amount, item.merchant, item.category, 'Private', '', item.source);
+    // Mark as approved
+    await db.runAsync("UPDATE review_queue SET status = 'Approved' WHERE id = ?", [item.id]);
+    setInbox(prev => prev.filter(i => i.id !== item.id));
   };
 
-  const handleIgnore = (id: string) => {
-    setInbox(prev => prev.filter(item => item.id !== id));
+  const handleIgnore = async (id: number) => {
+    // Mark as ignored
+    await db.runAsync("UPDATE review_queue SET status = 'Ignored' WHERE id = ?", [id]);
+    setInbox(prev => prev.filter(i => i.id !== id));
   };
 
   return (
@@ -55,10 +67,10 @@ export default function ReviewInboxScreen() {
 
               <View style={styles.suggestionBox}>
                 <Ionicons name="bulb" size={16} color="#f59e0b" />
-                <Text style={styles.suggestionText}>Suggested: <Text style={{fontWeight: '700'}}>{item.suggestedCategory}</Text> ({item.confidence}% match)</Text>
+                <Text style={styles.suggestionText}>Suggested: <Text style={{fontWeight: '700'}}>{item.category}</Text> (Auto-Detected)</Text>
               </View>
 
-              <Text style={styles.originalText}>"{item.originalText}"</Text>
+              <Text style={styles.originalText}>"Captured securely from {item.source}"</Text>
 
               <View style={styles.actionRow}>
                 <TouchableOpacity style={[styles.actionBtn, styles.btnIgnore]} onPress={() => handleIgnore(item.id)}>
@@ -66,7 +78,7 @@ export default function ReviewInboxScreen() {
                   <Text style={styles.btnIgnoreText}>Ignore</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.actionBtn, styles.btnApprove]} onPress={() => handleApprove(item.id)}>
+                <TouchableOpacity style={[styles.actionBtn, styles.btnApprove]} onPress={() => handleApprove(item)}>
                   <Ionicons name="checkmark" size={20} color="#ffffff" />
                   <Text style={styles.btnApproveText}>Approve</Text>
                 </TouchableOpacity>

@@ -1,9 +1,9 @@
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { syncWithCloud, clearSession } from '../../utils/database';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Settings() {
@@ -21,6 +21,31 @@ export default function Settings() {
   const [darkMode, setDarkMode] = useState(isDark);
   const [isSyncing, setIsSyncing] = useState(false);
   const router = useRouter();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadSettings = async () => {
+        try {
+          const s: any = await db.getFirstAsync('SELECT * FROM tracking_settings WHERE id = 1');
+          if (s) {
+            setTrackGrocery(s.trackGrocery === 1);
+            setTrackFood(s.trackFood === 1);
+            setTrackRecharge(s.trackRecharge === 1);
+            setTrackDTH(s.trackDTH === 1);
+            setSharePrivate(s.sharePrivateDetails === 1);
+          }
+        } catch(e) {
+          console.error(e);
+        }
+      };
+      loadSettings();
+    }, [db])
+  );
+
+  const updateSetting = async (key: string, value: boolean, setter: any) => {
+    setter(value);
+    await db.runAsync(`UPDATE tracking_settings SET ${key} = ? WHERE id = 1`, [value ? 1 : 0]);
+  };
 
   const handleLogout = async () => {
     await clearSession(db);
@@ -84,15 +109,15 @@ export default function Settings() {
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Auto-Detect Tracking</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <SettingRow icon="cart-outline" label="Track Groceries" type="toggle" value={trackGrocery} onToggle={setTrackGrocery} />
-        <SettingRow icon="fast-food-outline" label="Track Food" type="toggle" value={trackFood} onToggle={setTrackFood} />
-        <SettingRow icon="phone-portrait-outline" label="Track Mobile Recharge" type="toggle" value={trackRecharge} onToggle={setTrackRecharge} />
-        <SettingRow icon="tv-outline" label="Track DTH Recharge" type="toggle" value={trackDTH} onToggle={setTrackDTH} />
+        <SettingRow icon="cart-outline" label="Track Groceries" type="toggle" value={trackGrocery} onToggle={(v:boolean) => updateSetting('trackGrocery', v, setTrackGrocery)} />
+        <SettingRow icon="fast-food-outline" label="Track Food" type="toggle" value={trackFood} onToggle={(v:boolean) => updateSetting('trackFood', v, setTrackFood)} />
+        <SettingRow icon="phone-portrait-outline" label="Track Mobile Recharge" type="toggle" value={trackRecharge} onToggle={(v:boolean) => updateSetting('trackRecharge', v, setTrackRecharge)} />
+        <SettingRow icon="tv-outline" label="Track DTH Recharge" type="toggle" value={trackDTH} onToggle={(v:boolean) => updateSetting('trackDTH', v, setTrackDTH)} />
       </View>
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Privacy & Sharing</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <SettingRow icon="eye-outline" label="Share My Private Details" type="toggle" value={sharePrivate} onToggle={setSharePrivate} />
+        <SettingRow icon="eye-outline" label="Share My Private Details" type="toggle" value={sharePrivate} onToggle={(v:boolean) => updateSetting('sharePrivateDetails', v, setSharePrivate)} />
       </View>
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Appearance</Text>
