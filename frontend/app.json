@@ -44,7 +44,7 @@
         {
           "android": {
             "compileSdkVersion": 36,
-            "targetSdkVersion": 34,
+            "targetSdkVersion": 33,
             "buildToolsVersion": "34.0.0",
             "ndkVersion": "26.1.10909125"
           }
