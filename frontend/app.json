@@ -12,10 +12,7 @@
     },
     "android": {
       "package": "com.dinesh.familywallet.v2",
-      "permissions": [
-        "RECEIVE_SMS",
-        "READ_SMS"
-      ],
+      "permissions": [],
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/logo.png"
