@@ -16,6 +16,7 @@ model User {
 
   familyMembers FamilyMember[]
   expenses      Expense[]
+  reviewQueue   ReviewQueue[]
   settings      Settings?
 }
 
@@ -46,7 +47,7 @@ model Expense {
   amount     Float
   merchant   String
   category   String
-  visibility String   // "Shared" or "Private"
+  visibility String // "Shared" or "Private"
   date       DateTime @default(now())
   notes      String?
   source     String   @default("Manual") // "Manual", "SMS", "OCR"
@@ -64,8 +65,26 @@ model Settings {
   autoShareGroceries  Boolean @default(true)
   autoShareFood       Boolean @default(true)
   autoShareRecharge   Boolean @default(true)
+  trackGrocery        Boolean @default(true)
+  trackFood           Boolean @default(true)
+  trackRecharge       Boolean @default(true)
+  trackDTH            Boolean @default(true)
+  sharePrivateDetails Boolean @default(false)
   darkMode            Boolean @default(false)
   language            String  @default("English")
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model ReviewQueue {
+  id       String   @id @default(uuid())
+  amount   Float
+  merchant String
+  category String
+  date     DateTime @default(now())
+  source   String // "SMS" or "Notification"
+  status   String   @default("Pending") // "Pending", "Approved", "Ignored"
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 }
