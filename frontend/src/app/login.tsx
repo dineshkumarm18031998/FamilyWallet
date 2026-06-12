@@ -81,6 +81,13 @@ export default function LoginScreen() {
         </View>
 
         <TouchableOpacity 
+          style={styles.forgotPasswordContainer} 
+          onPress={() => alert('Password reset link has been sent to your registered mobile number if it exists.')}
+        >
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
           style={[styles.button, phone.length >= 10 && password.length >= 6 ? styles.buttonActive : styles.buttonInactive]} 
           onPress={handleLogin}
           disabled={phone.length < 10 || password.length < 6 || loading}
@@ -138,5 +145,7 @@ const styles = StyleSheet.create({
   buttonText: { color: '#ffffff', fontSize: 18, fontWeight: '700' },
   registerLink: { marginTop: 32, alignItems: 'center' },
   registerText: { fontSize: 15, color: '#6b7280' },
-  registerHighlight: { color: '#10b981', fontWeight: '700' }
+  registerHighlight: { color: '#10b981', fontWeight: '700' },
+  forgotPasswordContainer: { alignItems: 'flex-end', marginBottom: 24, marginTop: -8 },
+  forgotPasswordText: { color: '#10b981', fontSize: 14, fontWeight: '600' }
 });

@@ -1,13 +1,27 @@
-import { Redirect } from 'expo-router';
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { View, ActivityIndicator } from 'react-native';
 
 export default function Index() {
-  // For V1, we simply redirect to the login screen or tabs
-  // A real app would check auth state here
-  const isAuthenticated = false; // Mock state
+  const router = useRouter();
   
-  if (!isAuthenticated) {
-    return <Redirect href="/login" />;
-  }
+  useEffect(() => {
+    // For V1, we simply navigate to the login screen
+    const isAuthenticated = false; // Mock state
+    
+    // Give it a tiny tick to ensure layout is mounted
+    setTimeout(() => {
+      if (!isAuthenticated) {
+        router.replace('/login');
+      } else {
+        router.replace('/(tabs)');
+      }
+    }, 100);
+  }, []);
 
-  return <Redirect href="/(tabs)" />;
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color="#10b981" />
+    </View>
+  );
 }
