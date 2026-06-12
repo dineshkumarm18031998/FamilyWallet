@@ -2,6 +2,7 @@
   "expo": {
     "name": "FamilyWallet",
     "slug": "family-wallet",
+    "owner": "dk18031998s-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
