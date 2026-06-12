@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Mock Pending Auto-Detected Expenses for V2 Demo
 const PENDING_EXPENSES = [
@@ -13,6 +14,7 @@ export default function ReviewInboxScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [inbox, setInbox] = useState(PENDING_EXPENSES);
 
   const handleApprove = (id: string) => {
@@ -26,7 +28,7 @@ export default function ReviewInboxScreen() {
 
   return (
     <View style={[styles.container, isDark ? styles.darkBg : styles.lightBg]}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 40) }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={isDark ? '#f9fafb' : '#1f2937'} />
         </TouchableOpacity>

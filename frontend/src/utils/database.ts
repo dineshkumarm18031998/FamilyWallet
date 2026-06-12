@@ -18,6 +18,23 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       userId TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS review_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      amount REAL NOT NULL,
+      merchant TEXT NOT NULL,
+      category TEXT NOT NULL,
+      date TEXT NOT NULL,
+      source TEXT NOT NULL,
+      status TEXT DEFAULT 'Pending'
+    );
+    CREATE TABLE IF NOT EXISTS tracking_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      trackGrocery INTEGER DEFAULT 1,
+      trackFood INTEGER DEFAULT 1,
+      trackRecharge INTEGER DEFAULT 1,
+      trackDTH INTEGER DEFAULT 1,
+      sharePrivateDetails INTEGER DEFAULT 0
+    );
   `);
 
   try {
@@ -25,6 +42,13 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
     await db.execAsync("ALTER TABLE expenses ADD COLUMN source TEXT DEFAULT 'Manual';");
   } catch (e) {
     // Column already exists, ignore
+  }
+
+  try {
+    // Initialize default tracking settings if empty
+    await db.execAsync("INSERT OR IGNORE INTO tracking_settings (id, trackGrocery, trackFood, trackRecharge, trackDTH, sharePrivateDetails) VALUES (1, 1, 1, 1, 1, 0);");
+  } catch (e) {
+    console.error(e);
   }
 };
 

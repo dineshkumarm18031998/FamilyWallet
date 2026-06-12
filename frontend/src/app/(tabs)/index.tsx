@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getRecentExpenses, getWalletTotals, getCategoryTotals } from '../../utils/database';
@@ -10,6 +11,7 @@ export default function Home() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [totals, setTotals] = useState({ sharedTotal: 0, privateTotal: 0 });
@@ -42,7 +44,7 @@ export default function Home() {
 
   return (
     <View style={[styles.container, isDark ? styles.darkBg : styles.lightBg]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 10, 40) }]} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -210,7 +212,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   lightBg: { backgroundColor: '#f3f4f6' },
   darkBg: { backgroundColor: '#111827' },
-  scrollContent: { padding: 20, paddingTop: 60, paddingBottom: 100 },
+  scrollContent: { padding: 20, paddingBottom: 100 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
   greeting: { fontSize: 16, color: '#6b7280', marginBottom: 4 },
   name: { fontSize: 28, fontWeight: '800' },

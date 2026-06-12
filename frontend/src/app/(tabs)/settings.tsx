@@ -4,13 +4,20 @@ import { useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { syncWithCloud, clearSession } from '../../utils/database';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Settings() {
   const db = useSQLiteContext();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
 
-  const [autoShare, setAutoShare] = useState(true);
+  const [trackGrocery, setTrackGrocery] = useState(true);
+  const [trackFood, setTrackFood] = useState(true);
+  const [trackRecharge, setTrackRecharge] = useState(true);
+  const [trackDTH, setTrackDTH] = useState(true);
+  const [sharePrivate, setSharePrivate] = useState(false);
+
   const [darkMode, setDarkMode] = useState(isDark);
   const [isSyncing, setIsSyncing] = useState(false);
   const router = useRouter();
@@ -56,7 +63,7 @@ export default function Settings() {
   };
 
   return (
-    <ScrollView style={[styles.container, isDark ? styles.darkBg : styles.lightBg]} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={[styles.container, isDark ? styles.darkBg : styles.lightBg]} contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 10, 40) }]}>
       {/* ... previous code remains the same until Data & Sync ... */}
       <View style={styles.header}>
         <Text style={[styles.title, isDark ? styles.textLight : styles.textDark]}>Settings</Text>
@@ -75,11 +82,17 @@ export default function Settings() {
         </TouchableOpacity>
       </View>
 
+      <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Auto-Detect Tracking</Text>
+      <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
+        <SettingRow icon="cart-outline" label="Track Groceries" type="toggle" value={trackGrocery} onToggle={setTrackGrocery} />
+        <SettingRow icon="fast-food-outline" label="Track Food" type="toggle" value={trackFood} onToggle={setTrackFood} />
+        <SettingRow icon="phone-portrait-outline" label="Track Mobile Recharge" type="toggle" value={trackRecharge} onToggle={setTrackRecharge} />
+        <SettingRow icon="tv-outline" label="Track DTH Recharge" type="toggle" value={trackDTH} onToggle={setTrackDTH} />
+      </View>
+
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Privacy & Sharing</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <SettingRow icon="share-social-outline" label="Auto-Share Groceries" type="toggle" value={autoShare} onToggle={setAutoShare} />
-        <SettingRow icon="notifications-outline" label="Auto-Share Recharge" type="toggle" value={true} onToggle={() => {}} />
-        <SettingRow icon="lock-closed-outline" label="Private by Default" type="toggle" value={false} onToggle={() => {}} />
+        <SettingRow icon="eye-outline" label="Share My Private Details" type="toggle" value={sharePrivate} onToggle={setSharePrivate} />
       </View>
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Appearance</Text>
@@ -112,7 +125,7 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingTop: 60, paddingBottom: 100 },
+  scrollContent: { padding: 20, paddingBottom: 100 },
   lightBg: { backgroundColor: '#f3f4f6' },
   darkBg: { backgroundColor: '#111827' },
   header: { marginBottom: 24 },
