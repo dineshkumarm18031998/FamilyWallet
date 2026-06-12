@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
-import { saveSession } from '../utils/database';
+import { setSession } from '../utils/database';
 
 export default function LoginScreen() {
   const [phone, setPhone] = useState('');
@@ -27,7 +27,7 @@ export default function LoginScreen() {
         const data = await res.json();
         if (data.success) {
           // Save session token to local SQLite database
-          await saveSession(db, data.token);
+          await setSession(db, data.token);
           // Navigate immediately to the Dashboard
           router.replace('/(tabs)');
         } else {
