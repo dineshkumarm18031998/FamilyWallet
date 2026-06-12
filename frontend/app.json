@@ -12,7 +12,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
-      "package": "com.dinesh.familywallet.v2",
+      "package": "com.dinesh.familywallet.v3",
       "permissions": [],
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
