@@ -38,7 +38,18 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "ndkVersion": "26.1.10909125"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
