@@ -11,7 +11,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
-      "package": "com.dinesh.familywallet",
+      "package": "com.dinesh.familywallet.app",
       "permissions": [
         "RECEIVE_SMS",
         "READ_SMS"
