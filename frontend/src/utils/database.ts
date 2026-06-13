@@ -51,8 +51,11 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
   }
 
   try {
-    // Initialize default tracking settings if empty (Default OFF)
-    await db.execAsync("INSERT OR IGNORE INTO tracking_settings (id, trackGrocery, trackFood, trackRecharge, trackDTH, sharePrivateDetails) VALUES (1, 0, 0, 0, 0, 0);");
+    // Initialize default tracking settings if empty (Default ON)
+    await db.execAsync("INSERT OR IGNORE INTO tracking_settings (id, trackGrocery, trackFood, trackRecharge, trackDTH, sharePrivateDetails) VALUES (1, 1, 1, 1, 1, 0);");
+    
+    // Force migrate existing users who had it stuck on 0
+    await db.execAsync("UPDATE tracking_settings SET trackGrocery=1, trackFood=1, trackRecharge=1, trackDTH=1 WHERE id=1 AND trackGrocery=0 AND trackFood=0 AND trackRecharge=0 AND trackDTH=0;");
   } catch (e) {
     console.error(e);
   }

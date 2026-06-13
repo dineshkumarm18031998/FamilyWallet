@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch, Alert, ActivityIndicator, Appearance } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch, Alert, ActivityIndicator, Appearance, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { syncWithCloud, clearSession } from '../../utils/database';
@@ -20,6 +20,9 @@ export default function Settings() {
 
   const [darkMode, setDarkMode] = useState(isDark);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [profileName, setProfileName] = useState('Dinesh');
+  const [profilePhone, setProfilePhone] = useState('+91 6380661637');
   const router = useRouter();
 
   useFocusEffect(
@@ -96,16 +99,43 @@ export default function Settings() {
 
       <View style={[styles.profileCard, isDark ? styles.cardDark : styles.cardLight]}>
         <View style={styles.profileAvatar}>
-          <Text style={styles.avatarText}>D</Text>
+          <Text style={styles.avatarText}>{profileName[0]}</Text>
         </View>
         <View style={styles.profileInfo}>
-          <Text style={[styles.profileName, isDark ? styles.textLight : styles.textDark]}>Dinesh</Text>
-          <Text style={styles.profilePhone}>+91 6380661637</Text>
+          <Text style={[styles.profileName, isDark ? styles.textLight : styles.textDark]}>{profileName}</Text>
+          <Text style={styles.profilePhone}>{profilePhone}</Text>
         </View>
-        <TouchableOpacity style={styles.editBtn}>
+        <TouchableOpacity style={styles.editBtn} onPress={() => setEditModalVisible(true)}>
           <Text style={styles.editBtnText}>Edit</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal visible={editModalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark ? styles.cardDark : styles.cardLight]}>
+            <Text style={[styles.modalTitle, isDark ? styles.textLight : styles.textDark]}>Edit Profile</Text>
+            
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Name</Text>
+              <TextInput style={[styles.input, isDark ? styles.textLight : styles.textDark]} value={profileName} onChangeText={setProfileName} />
+            </View>
+            
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Phone</Text>
+              <TextInput style={[styles.input, isDark ? styles.textLight : styles.textDark]} value={profilePhone} onChangeText={setProfilePhone} keyboardType="phone-pad" />
+            </View>
+            
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalBtnSave} onPress={() => { setEditModalVisible(false); Alert.alert('Saved', 'Profile updated successfully!'); }}>
+                <Text style={styles.saveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Auto-Detect Tracking</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
@@ -186,5 +216,16 @@ const styles = StyleSheet.create({
   settingLabel: { fontSize: 16, fontWeight: '500' },
   settingValueText: { fontSize: 16, color: '#9ca3af' },
   logoutBtn: { marginTop: 20, alignItems: 'center', padding: 16 },
-  logoutText: { color: '#ef4444', fontSize: 16, fontWeight: '700' }
+  logoutText: { color: '#ef4444', fontSize: 16, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
+  modalContent: { borderRadius: 24, padding: 24, elevation: 10 },
+  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
+  inputWrapper: { marginBottom: 16 },
+  inputLabel: { fontSize: 14, color: '#64748b', marginBottom: 8, fontWeight: '600' },
+  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, padding: 12, fontSize: 16 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20, gap: 12 },
+  modalBtnCancel: { padding: 12 },
+  cancelText: { color: '#64748b', fontWeight: '600', fontSize: 16 },
+  modalBtnSave: { backgroundColor: '#10b981', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
+  saveText: { color: '#fff', fontWeight: '700', fontSize: 16 }
 });
