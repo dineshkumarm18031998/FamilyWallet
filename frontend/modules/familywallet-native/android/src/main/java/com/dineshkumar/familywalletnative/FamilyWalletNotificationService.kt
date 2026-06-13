@@ -53,8 +53,9 @@ class FamilyWalletNotificationService : NotificationListenerService() {
         val extras = sbn.notification.extras
         val title = extras.getString("android.title") ?: ""
         val text = extras.getCharSequence("android.text")?.toString() ?: ""
+        val bigText = extras.getCharSequence("android.bigText")?.toString() ?: ""
 
-        val fullText = "$title $text"
+        val fullText = "$title $text $bigText"
 
         // Pass directly to the new Ultimate Auto Detection Engine
         val parsed = ExpenseParser.parseMessage(packageName, fullText)

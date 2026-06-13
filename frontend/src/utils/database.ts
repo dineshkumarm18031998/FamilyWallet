@@ -1,11 +1,13 @@
 import * as SQLite from 'expo-sqlite';
 import { API_URL } from './apiConfig';
+import * as Crypto from 'expo-crypto';
 
 export const initDB = async (db: SQLite.SQLiteDatabase) => {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
+    DROP TABLE IF EXISTS expenses;
     CREATE TABLE IF NOT EXISTS expenses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT PRIMARY KEY,
       amount REAL NOT NULL,
       merchant TEXT NOT NULL,
       category TEXT NOT NULL,
@@ -76,12 +78,17 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
 
 export const addExpense = async (db: SQLite.SQLiteDatabase, amount: number, merchant: string, category: string, visibility: string, notes: string, source: string = 'Manual') => {
   const date = new Date().toISOString();
+  const id = Crypto.randomUUID();
   
-  const result = await db.runAsync(
-    'INSERT INTO expenses (amount, merchant, category, visibility, date, notes, source, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [amount, merchant, category, visibility, date, notes, source, 'Pending']
+  await db.runAsync(
+    'INSERT INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, amount, merchant, category, visibility, date, notes, source, 'Pending']
   );
-  return result.lastInsertRowId;
+
+  // Auto-sync trigger
+  syncWithCloud(db).catch(console.warn);
+
+  return id;
 };
 
 export const setSession = async (db: SQLite.SQLiteDatabase, userId: string) => {

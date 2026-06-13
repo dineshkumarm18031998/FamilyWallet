@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Modal, Pressable, PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,12 +45,16 @@ export default function Home() {
     async function requestPermissions() {
       if (Platform.OS === 'android') {
         try {
+          const hasAsked = await AsyncStorage.getItem('hasAskedNotificationPermission');
+          if (hasAsked) return;
+
           const granted = await PermissionsAndroid.requestMultiple([
             PermissionsAndroid.PERMISSIONS.READ_SMS,
             PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
           ]);
           
           if (granted[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] === PermissionsAndroid.RESULTS.GRANTED) {
+            await AsyncStorage.setItem('hasAskedNotificationPermission', 'true');
             // Prompt for Notification Service
             Alert.alert(
               "Enable Auto-Detect",
@@ -263,9 +268,9 @@ const styles = StyleSheet.create({
   textLight: { color: '#ffffff' },
   textDark: { color: '#070b14' },
   walletsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, marginBottom: 24 },
-  card: { flex: 1, padding: 20, borderRadius: 28, elevation: 12, shadowColor: '#10b981', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
-  familyCard: { backgroundColor: '#10b981', borderWidth: 1, borderColor: '#34d399' },
-  personalCard: { backgroundColor: '#0f766e', borderWidth: 1, borderColor: '#14b8a6' },
+  card: { flex: 1, padding: 20, borderRadius: 24, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
+  familyCard: { backgroundColor: '#10b981' },
+  personalCard: { backgroundColor: '#3b82f6' },
   cardIcon: { marginBottom: 16 },
   cardLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
   cardAmount: { color: '#ffffff', fontSize: 26, fontWeight: '900', marginBottom: 4, letterSpacing: -0.5 },
@@ -286,9 +291,9 @@ const styles = StyleSheet.create({
   statIconContainer: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   statCatName: { fontSize: 14, fontWeight: '700', marginBottom: 4, letterSpacing: 0.5 },
   statCatAmount: { fontSize: 18, fontWeight: '900', color: '#10b981' },
-  transactionsCard: { borderRadius: 28, padding: 16, elevation: 6 },
-  cardLight: { backgroundColor: 'rgba(255,255,255,0.8)', borderWidth: 1, borderColor: '#ffffff', shadowColor: '#10b981', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20 },
-  cardDark: { backgroundColor: 'rgba(30, 41, 59, 0.6)', borderWidth: 1, borderColor: 'rgba(51, 65, 85, 0.8)', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20 },
+  transactionsCard: { borderRadius: 24, padding: 16, elevation: 4 },
+  cardLight: { backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8 },
+  cardDark: { backgroundColor: '#1e293b', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
   txItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18, borderBottomWidth: 1 },
   borderLight: { borderBottomColor: 'rgba(0,0,0,0.05)' },
   borderDark: { borderBottomColor: 'rgba(255,255,255,0.05)' },

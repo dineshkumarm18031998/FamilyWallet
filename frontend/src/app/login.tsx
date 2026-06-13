@@ -33,6 +33,23 @@ export default function LoginScreen() {
         } else {
           // Sync local SQLite session state with token returned by your API
           await setSession(db, data.token);
+
+          // PULL SYNC: Download cloud data into local SQLite
+          try {
+            const pullRes = await fetch(`${API_URL}/sync/pull/${data.token}`);
+            const pullData = await pullRes.json();
+            if (pullData.success && pullData.data) {
+              for (const exp of pullData.data) {
+                await db.runAsync(
+                  'INSERT OR REPLACE INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  [exp.id, exp.amount, exp.merchant, exp.category, exp.visibility, exp.date, exp.notes, exp.source, 'Synced']
+                );
+              }
+            }
+          } catch(e) {
+            console.warn("Pull sync failed", e);
+          }
+
           router.replace('/(tabs)');
         }
       } catch (err: any) {

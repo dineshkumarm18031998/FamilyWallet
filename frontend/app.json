@@ -32,8 +32,11 @@
         {
           "backgroundColor": "#111827",
           "android": {
-            "image": "./assets/images/logo.png",
-            "imageWidth": 150
+            "splash": {
+              "image": "./assets/images/logo.png",
+              "resizeMode": "contain",
+              "backgroundColor": "#111827"
+            }
           }
         }
       ],
