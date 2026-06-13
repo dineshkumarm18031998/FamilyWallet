@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -19,22 +19,12 @@ export default function LoginScreen() {
     if (phone.length >= 10 && password.length >= 6) {
       setLoading(true);
       try {
-        const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, password })
-        });
-        const data = await res.json();
-        if (data.success) {
-          // Save session token to local SQLite database
-          await setSession(db, data.token);
-          // Navigate immediately to the Dashboard
-          router.replace('/(tabs)');
-        } else {
-          alert('Login failed: ' + data.error);
-        }
+        // Local SQLite based session since there is no backend
+        await setSession(db, "local_user_token_" + phone);
+        // Navigate immediately to the Dashboard
+        router.replace('/(tabs)');
       } catch (err) {
-        alert('Network error. Check your connection.');
+        Alert.alert('Error', 'Failed to save session locally.');
       } finally {
         setLoading(false);
       }

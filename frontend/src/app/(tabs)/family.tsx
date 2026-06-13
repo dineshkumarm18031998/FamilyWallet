@@ -36,49 +36,21 @@ export default function Family() {
       }
     } catch (e) {
       setViewState('no_family');
-    }
+    setViewState('no_family');
   };
 
   const handleCreate = async () => {
     if (!familyName) return;
     setLoading(true);
-    const userId = await getSession(db) || "user_123_temp";
-    try {
-      const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/family/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, name: familyName })
-      });
-      const data = await res.json();
-      if (data.success) fetchFamily();
-    } catch (e) {
-      alert('Network Error');
-    } finally {
-      setLoading(false);
-    }
+    alert('Backend integration is disabled for the local offline version.');
+    setLoading(false);
   };
 
   const handleJoin = async () => {
     if (!inviteCode) return;
     setLoading(true);
-    const userId = await getSession(db) || "user_123_temp";
-    try {
-      const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/family/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, inviteCode })
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchFamily();
-      } else {
-        alert(data.error);
-      }
-    } catch (e) {
-      alert('Network Error');
-    } finally {
-      setLoading(false);
-    }
+    alert('Backend integration is disabled for the local offline version.');
+    setLoading(false);
   };
 
   const renderNoFamily = () => (

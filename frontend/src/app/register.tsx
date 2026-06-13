@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -19,31 +19,15 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (password !== confirmPassword) {
-      alert("Passwords do not match!");
-      return;
-    }
-
-    if (phone.length >= 10 && password.length >= 6 && name.length >= 2) {
+    if (phone.length >= 10 && password.length >= 6 && name.length >= 3) {
       setLoading(true);
       try {
-        const res = await fetch('https://familywallet-production-a87d.up.railway.app/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, password, name })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-          // Save session token to local SQLite database
-          await setSession(db, data.token);
-          // Navigate immediately to the Dashboard
-          router.replace('/(tabs)');
-        } else {
-          alert('Registration failed: ' + data.error);
-        }
+        // Local offline registration fallback
+        setTimeout(() => {
+          router.replace('/login');
+        }, 500);
       } catch (err) {
-        alert('Network error. Check your connection.');
+        Alert.alert('Error', 'Failed to register locally.');
       } finally {
         setLoading(false);
       }
