@@ -85,7 +85,7 @@ export default function LoginScreen() {
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Log In</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.registerLink} onPress={() => router.push('/register')}>
+        <TouchableOpacity style={styles.registerLink} onPress={() => router.push('/register' as any)}>
           <Text style={styles.registerText}>
             Don't have an account? <Text style={styles.registerHighlight}>Sign Up</Text>
           </Text>

@@ -23,19 +23,6 @@ export default function Family() {
   );
 
   const fetchFamily = async () => {
-    setViewState('loading');
-    const userId = await getSession(db) || "user_123_temp";
-    try {
-      const res = await fetch(`https://familywallet-production-a87d.up.railway.app/api/family/${userId}`);
-      const data = await res.json();
-      if (data.hasFamily) {
-        setFamilyData(data.data);
-        setViewState('dashboard');
-      } else {
-        setViewState('no_family');
-      }
-    } catch (e) {
-      setViewState('no_family');
     setViewState('no_family');
   };
 
@@ -143,7 +130,7 @@ export default function Family() {
       </View>
 
       <View style={[styles.membersCard, isDark ? styles.cardDark : styles.cardLight]}>
-        {familyData.members.map((m, i) => (
+        {familyData.members.map((m: any, i: any) => (
           <View key={m.id} style={[styles.memberRow, i !== familyData.members.length - 1 && (isDark ? styles.borderDark : styles.borderLight)]}>
             <View style={styles.memberAvatar}>
               <Text style={styles.avatarText}>{m.name[0]}</Text>

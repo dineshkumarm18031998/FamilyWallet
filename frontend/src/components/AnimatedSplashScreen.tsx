@@ -88,7 +88,7 @@ const RING_SIZE = 180;
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#111827', // Premium dark background
     justifyContent: 'center',
     alignItems: 'center',

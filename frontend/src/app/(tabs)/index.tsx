@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Modal, Pressable, PermissionsAndroid, Platform, Alert, Linking, IntentLauncherAndroid } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Modal, Pressable, PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getRecentExpenses, getWalletTotals, getCategoryTotals } from '../../utils/database';
 import FamilywalletNativeModule from '../../../modules/familywallet-native/src/FamilywalletNativeModule';
@@ -53,14 +53,12 @@ export default function Home() {
             // Prompt for Notification Service
             Alert.alert(
               "Enable Auto-Detect",
-              "To auto-detect expenses from GPay/PhonePe/Swiggy notifications, please allow Notification Access for FamilyWallet in the next screen.",
+              "FamilyWallet uses notification reading to securely track spending offline. We only look for food and recharge apps. Please enable 'FamilyWallet' in the next screen.",
               [
                 { text: "Cancel", style: "cancel" },
                 { 
-                  text: "Allow", 
-                  onPress: () => {
-                    FamilywalletNativeModule.openNotificationSettings();
-                  }
+                  text: "Open Settings", 
+                  onPress: () => (FamilywalletNativeModule as any).openNotificationSettings()
                 }
               ]
             );

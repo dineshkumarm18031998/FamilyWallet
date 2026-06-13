@@ -7,7 +7,7 @@ const emitter = new EventEmitter(FamilywalletNativeModule as any);
 export const initializeNativeEngine = (db: SQLite.SQLiteDatabase) => {
   console.log('Initializing Native Auto-Detect Engine...');
 
-  emitter.addListener('onExpenseDetected', async (event: any) => {
+  (emitter as any).addListener('onExpenseDetected', async (event: any) => {
     try {
       console.log('NATIVE ENGINE DETECTED EXPENSE:', event);
       const { amount, merchant, category, source, confidence, preview } = event;
