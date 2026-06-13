@@ -5,6 +5,9 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { syncWithCloud, clearSession } from '../../utils/database';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function Settings() {
   const db = useSQLiteContext();
@@ -82,11 +85,51 @@ export default function Settings() {
     const result = await syncWithCloud(db);
     setIsSyncing(false);
     
-    // In web environment Alert doesn't work perfectly out of the box, but we can fallback to console or window.alert
     if (typeof window !== 'undefined' && window.alert) {
       window.alert(result.message);
     } else {
       Alert.alert('Sync Status', result.message);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const expenses = await db.getAllAsync('SELECT * FROM expenses');
+      const settings = await db.getAllAsync('SELECT * FROM tracking_settings');
+      const budgets = await db.getAllAsync('SELECT * FROM budgets');
+      
+      const backupData = JSON.stringify({ expenses, settings, budgets }, null, 2);
+      const fileUri = FileSystem.documentDirectory + 'FamilyWallet_Backup.json';
+      await FileSystem.writeAsStringAsync(fileUri, backupData);
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri);
+      }
+    } catch(e: any) {
+      Alert.alert('Export Failed', e.message);
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const jsonString = await FileSystem.readAsStringAsync(result.assets[0].uri);
+        const data = JSON.parse(jsonString);
+        
+        if (data.expenses && Array.isArray(data.expenses)) {
+          for (const exp of data.expenses) {
+            await db.runAsync('INSERT OR REPLACE INTO expenses (id, amount, merchant, category, timestamp, month, source) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+              [exp.id, exp.amount, exp.merchant, exp.category, exp.timestamp, exp.month, exp.source]
+            );
+          }
+          Alert.alert('Success', 'Backup restored successfully!');
+        } else {
+          Alert.alert('Error', 'Invalid backup file format');
+        }
+      }
+    } catch(e: any) {
+      Alert.alert('Restore Failed', e.message);
     }
   };
 
@@ -170,14 +213,14 @@ export default function Settings() {
         <TouchableOpacity style={[styles.settingRow, isDark ? styles.borderDark : styles.borderLight]} onPress={handleSync} disabled={isSyncing}>
           <View style={styles.settingRowLeft}>
             <View style={styles.iconContainer}>
-              <Ionicons name="cloud-upload-outline" size={20} color="#6b7280" />
+              <Ionicons name="cloud-upload-outline" size={20} color="#10b981" />
             </View>
-            <Text style={[styles.settingLabel, isDark ? styles.textLight : styles.textDark]}>Sync Now</Text>
+            <Text style={[styles.settingLabel, isDark ? styles.textLight : styles.textDark]}>Sync to Cloud</Text>
           </View>
           {isSyncing ? <ActivityIndicator color="#10b981" /> : <Ionicons name="arrow-forward" size={20} color="#9ca3af" />}
         </TouchableOpacity>
-        <SettingRow icon="download-outline" label="Export CSV" />
-        <SettingRow icon="refresh-outline" label="Restore Backup" />
+        <SettingRow icon="download-outline" label="Export Backup (JSON)" type="action" onToggle={handleExportBackup} />
+        <SettingRow icon="refresh-outline" label="Restore Backup (JSON)" type="action" onToggle={handleRestoreBackup} />
       </View>
 
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -190,42 +233,42 @@ export default function Settings() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 100 },
-  lightBg: { backgroundColor: '#f8fafc' },
-  darkBg: { backgroundColor: '#0f172a' },
+  lightBg: { backgroundColor: '#f0f4f8' },
+  darkBg: { backgroundColor: '#070b14' }, // Deep futuristic space blue
   header: { marginBottom: 24 },
-  title: { fontSize: 32, fontWeight: '800' },
-  textLight: { color: '#f9fafb' },
+  title: { fontSize: 36, fontWeight: '900', letterSpacing: -1 },
+  textLight: { color: '#ffffff' },
   textDark: { color: '#0f172a' },
-  cardLight: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f1f5f9', shadowColor: '#10b981', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 4 },
-  cardDark: { backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155' },
-  profileCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 24, marginBottom: 32 },
-  profileAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  avatarText: { color: '#fff', fontSize: 24, fontWeight: '700' },
+  cardLight: { backgroundColor: 'rgba(255,255,255,0.8)', borderWidth: 1, borderColor: '#ffffff', shadowColor: '#10b981', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 5 },
+  cardDark: { backgroundColor: 'rgba(30, 41, 59, 0.6)', borderWidth: 1, borderColor: 'rgba(51, 65, 85, 0.8)', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20 },
+  profileCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 28, marginBottom: 32 },
+  profileAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', marginRight: 16, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: {width: 0, height: 4} },
+  avatarText: { color: '#070b14', fontSize: 28, fontWeight: '800' },
   profileInfo: { flex: 1 },
-  profileName: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
-  profilePhone: { fontSize: 14, color: '#9ca3af' },
-  editBtn: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#10b98120', borderRadius: 20 },
-  editBtnText: { color: '#10b981', fontWeight: '600' },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
-  sectionCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 24, elevation: 2 },
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
-  borderLight: { borderBottomColor: '#f1f5f9' },
-  borderDark: { borderBottomColor: '#334155' },
+  profileName: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
+  profilePhone: { fontSize: 14, color: '#10b981', fontWeight: '600', letterSpacing: 1 },
+  editBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(16, 185, 129, 0.15)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.3)' },
+  editBtnText: { color: '#10b981', fontWeight: '700' },
+  sectionTitle: { fontSize: 13, fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 12, marginLeft: 8 },
+  sectionCard: { borderRadius: 28, overflow: 'hidden', marginBottom: 28, elevation: 4 },
+  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderBottomWidth: 1 },
+  borderLight: { borderBottomColor: 'rgba(0,0,0,0.05)' },
+  borderDark: { borderBottomColor: 'rgba(255,255,255,0.05)' },
   settingRowLeft: { flexDirection: 'row', alignItems: 'center' },
-  iconContainer: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  settingLabel: { fontSize: 16, fontWeight: '500' },
-  settingValueText: { fontSize: 16, color: '#9ca3af' },
-  logoutBtn: { marginTop: 20, alignItems: 'center', padding: 16 },
-  logoutText: { color: '#ef4444', fontSize: 16, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  modalContent: { borderRadius: 24, padding: 24, elevation: 10 },
-  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
-  inputWrapper: { marginBottom: 16 },
-  inputLabel: { fontSize: 14, color: '#64748b', marginBottom: 8, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, padding: 12, fontSize: 16 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20, gap: 12 },
-  modalBtnCancel: { padding: 12 },
-  cancelText: { color: '#64748b', fontWeight: '600', fontSize: 16 },
-  modalBtnSave: { backgroundColor: '#10b981', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
-  saveText: { color: '#fff', fontWeight: '700', fontSize: 16 }
+  iconContainer: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(16, 185, 129, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  settingLabel: { fontSize: 16, fontWeight: '600' },
+  settingValueText: { fontSize: 16, color: '#10b981', fontWeight: '600' },
+  logoutBtn: { marginTop: 10, alignItems: 'center', padding: 18, borderRadius: 20, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
+  logoutText: { color: '#ef4444', fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(7, 11, 20, 0.8)', justifyContent: 'center', padding: 24 },
+  modalContent: { borderRadius: 32, padding: 32, elevation: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 24, color: '#10b981' },
+  inputWrapper: { marginBottom: 20 },
+  inputLabel: { fontSize: 14, color: '#94a3b8', marginBottom: 8, fontWeight: '700', letterSpacing: 0.5 },
+  input: { borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.3)', borderRadius: 16, padding: 16, fontSize: 16, backgroundColor: 'rgba(0,0,0,0.2)' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 24, gap: 16 },
+  modalBtnCancel: { padding: 16 },
+  cancelText: { color: '#94a3b8', fontWeight: '700', fontSize: 16 },
+  modalBtnSave: { backgroundColor: '#10b981', paddingHorizontal: 24, paddingVertical: 16, borderRadius: 16, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: {width: 0, height: 4} },
+  saveText: { color: '#070b14', fontWeight: '900', fontSize: 16, letterSpacing: 1 }
 });

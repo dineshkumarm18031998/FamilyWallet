@@ -31,7 +31,11 @@ class FamilyWalletNotificationService : NotificationListenerService() {
 
         // Amount Extraction Only (As agreed)
         "com.google.android.apps.nbu.paisa.user", // GPay
-        "com.phonepe.app"                         // PhonePe
+        "com.phonepe.app",                        // PhonePe
+
+        // RCS Chat Interception
+        "com.google.android.apps.messaging",      // Google Messages
+        "com.samsung.android.messaging"           // Samsung Messages
     )
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
