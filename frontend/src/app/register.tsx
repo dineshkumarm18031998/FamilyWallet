@@ -4,11 +4,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { setSession } from '../utils/database';
-import { supabase } from '../utils/supabaseClient';
+import { API_URL } from '../utils/apiConfig';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
@@ -20,32 +20,32 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (email.length > 5 && password.length >= 6 && name.length >= 2) {
+    if (phone.length >= 10 && password.length >= 6 && name.length >= 2) {
       setLoading(true);
       try {
-        const { error, data } = await supabase.auth.signUp({
-          email: email,
-          password: password,
-          options: {
-            data: { full_name: name }
-          }
+        const response = await fetch(`${API_URL}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password, name })
         });
+        
+        const data = await response.json();
 
-        if (error) {
-          Alert.alert('Registration Failed', error.message);
+        if (!response.ok || !data.success) {
+          Alert.alert('Registration Failed', data.error || 'Failed to register');
         } else {
-          Alert.alert('Success', 'Account created! Please check your email to verify (if enabled), or login directly.');
+          Alert.alert('Success', 'Account created! You can now log in.');
           router.replace('/login');
         }
       } catch (err: any) {
-        Alert.alert('Error', err.message || 'Failed to register');
+        Alert.alert('Error', 'Could not connect to the server. Please check your internet connection.');
       } finally {
         setLoading(false);
       }
     }
   };
 
-  const isFormValid = email.length > 5 && password.length >= 6 && password === confirmPassword && name.length >= 2;
+  const isFormValid = phone.length >= 10 && password.length >= 6 && password === confirmPassword && name.length >= 2;
 
   return (
     <KeyboardAvoidingView 
@@ -77,15 +77,15 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Email Address</Text>
+          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Mobile Number</Text>
           <TextInput
             style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-            placeholder="Enter your email"
+            placeholder="Enter 10-digit number"
             placeholderTextColor="#9ca3af"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            keyboardType="phone-pad"
+            value={phone}
+            onChangeText={setPhone}
+            maxLength={10}
           />
         </View>
 

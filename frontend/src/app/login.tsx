@@ -4,10 +4,10 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { setSession } from '../utils/database';
-import { supabase } from '../utils/supabaseClient';
+import { API_URL } from '../utils/apiConfig';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -17,23 +17,26 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (email.length > 5 && password.length >= 6) {
+    if (phone.length >= 10 && password.length >= 6) {
       setLoading(true);
       try {
-        const { error, data } = await supabase.auth.signInWithPassword({
-          email: email,
-          password: password,
+        const response = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password })
         });
         
-        if (error) {
-          Alert.alert('Login Failed', error.message);
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+          Alert.alert('Login Failed', data.error || 'Invalid credentials');
         } else {
-          // Sync local SQLite session state
-          await setSession(db, data.session?.access_token || 'supabase_token');
+          // Sync local SQLite session state with token returned by your API
+          await setSession(db, data.token);
           router.replace('/(tabs)');
         }
       } catch (err: any) {
-        Alert.alert('Error', err.message || 'Failed to login');
+        Alert.alert('Error', 'Could not connect to the server. Please check your internet connection.');
       } finally {
         setLoading(false);
       }
@@ -41,18 +44,10 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = async () => {
-    if (email.length < 5) {
-      Alert.alert('Required', 'Please enter your email address first.');
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    setLoading(false);
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      Alert.alert('Check Email', 'A password reset link has been sent to your email.');
-    }
+    Alert.alert(
+      'Forgot Password',
+      'Password recovery is not yet supported via the API. Please contact the administrator.'
+    );
   };
 
   return (
@@ -70,15 +65,15 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Email Address</Text>
+          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Mobile Number</Text>
           <TextInput
             style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-            placeholder="Enter your email"
+            placeholder="Enter 10-digit number"
             placeholderTextColor="#9ca3af"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            keyboardType="phone-pad"
+            value={phone}
+            onChangeText={setPhone}
+            maxLength={10}
           />
         </View>
 
@@ -103,9 +98,9 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.button, email.length > 5 && password.length >= 6 ? styles.buttonActive : styles.buttonInactive]} 
+          style={[styles.button, phone.length >= 10 && password.length >= 6 ? styles.buttonActive : styles.buttonInactive]} 
           onPress={handleLogin}
-          disabled={email.length <= 5 || password.length < 6 || loading}
+          disabled={phone.length < 10 || password.length < 6 || loading}
         >
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Log In</Text>}
         </TouchableOpacity>

@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { API_URL } from './apiConfig';
 
 export const initDB = async (db: SQLite.SQLiteDatabase) => {
   await db.execAsync(`
@@ -128,7 +129,7 @@ export const syncWithCloud = async (db: SQLite.SQLiteDatabase) => {
 
     const userId = await getSession(db) || "user_123_temp";
 
-    const response = await fetch('https://familywallet-production-a87d.up.railway.app/api/sync/push', {
+    const response = await fetch(`${API_URL}/sync/push`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, expenses: pendingExpenses })
