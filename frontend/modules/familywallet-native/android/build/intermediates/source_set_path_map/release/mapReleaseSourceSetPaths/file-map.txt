@@ -1,0 +1,7 @@
+com.dineshkumar.familywalletnative.familywallet-native-pngs-0 C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\build\generated\res\pngs\release
+com.dineshkumar.familywalletnative.familywallet-native-resValues-1 C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\build\generated\res\resValues\release
+com.dineshkumar.familywalletnative.familywallet-native-mergeReleaseResources-2 C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\build\intermediates\incremental\release\mergeReleaseResources\merged.dir
+com.dineshkumar.familywalletnative.familywallet-native-mergeReleaseResources-3 C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\build\intermediates\incremental\release\mergeReleaseResources\stripped.dir
+com.dineshkumar.familywalletnative.familywallet-native-release-4 C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\build\intermediates\merged_res\release\mergeReleaseResources
+com.dineshkumar.familywalletnative.familywallet-native-main-5 C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\res
+com.dineshkumar.familywalletnative.familywallet-native-release-6 C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\release\res

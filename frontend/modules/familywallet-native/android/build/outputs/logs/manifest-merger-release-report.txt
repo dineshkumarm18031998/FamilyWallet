@@ -1,0 +1,57 @@
+-- Merging decision tree log ---
+manifest
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:1:1-29:12
+INJECTED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:1:1-29:12
+	package
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:1:11-55
+		INJECTED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml
+	xmlns:android
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:2:3-61
+uses-permission#android.permission.RECEIVE_SMS
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:5:3-68
+	android:name
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:5:20-65
+uses-permission#android.permission.READ_SMS
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:6:3-65
+	android:name
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:6:20-62
+application
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:8:3-28:17
+receiver#com.dineshkumar.familywalletnative.SmsReceiver
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:10:7-17:18
+	android:exported
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:12:11-34
+	android:permission
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:13:11-64
+	android:name
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:11:11-38
+intent-filter#action:name:android.provider.Telephony.SMS_RECEIVED
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:14:11-16:27
+	android:priority
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:14:26-48
+action#android.provider.Telephony.SMS_RECEIVED
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:15:15-80
+	android:name
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:15:23-77
+service#com.dineshkumar.familywalletnative.FamilyWalletNotificationService
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:20:7-27:17
+	android:exported
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:22:11-34
+	android:permission
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:23:11-85
+	android:name
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:21:11-58
+intent-filter#action:name:android.service.notification.NotificationListenerService
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:24:11-26:27
+action#android.service.notification.NotificationListenerService
+ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:25:15-97
+	android:name
+		ADDED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:25:23-94
+uses-sdk
+INJECTED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml
+INJECTED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml

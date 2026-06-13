@@ -1,0 +1,54 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.dineshkumar.familywalletnative" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6
+7    <!-- Permissions required for SMS Detection -->
+8    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+8-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:5:3-68
+8-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:5:20-65
+9    <uses-permission android:name="android.permission.READ_SMS" />
+9-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:6:3-65
+9-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:6:20-62
+10
+11    <application>
+11-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:8:3-28:17
+12
+13        <!-- SMS Receiver: Exported true required for Android 14 -->
+14        <receiver
+14-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:10:7-17:18
+15            android:name="com.dineshkumar.familywalletnative.SmsReceiver"
+15-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:11:11-38
+16            android:exported="true"
+16-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:12:11-34
+17            android:permission="android.permission.BROADCAST_SMS" >
+17-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:13:11-64
+18            <intent-filter android:priority="999" >
+18-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:14:11-16:27
+18-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:14:26-48
+19                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+19-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:15:15-80
+19-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:15:23-77
+20            </intent-filter>
+21        </receiver>
+22
+23        <!-- Notification Listener Service: Exported true required -->
+24        <service
+24-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:20:7-27:17
+25            android:name="com.dineshkumar.familywalletnative.FamilyWalletNotificationService"
+25-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:21:11-58
+26            android:exported="true"
+26-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:22:11-34
+27            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" >
+27-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:23:11-85
+28            <intent-filter>
+28-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:24:11-26:27
+29                <action android:name="android.service.notification.NotificationListenerService" />
+29-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:25:15-97
+29-->C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\modules\familywallet-native\android\src\main\AndroidManifest.xml:25:23-94
+30            </intent-filter>
+31        </service>
+32    </application>
+33
+34</manifest>
