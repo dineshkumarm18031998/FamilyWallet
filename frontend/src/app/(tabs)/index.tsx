@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getRecentExpenses, getWalletTotals, getCategoryTotals } from '../../utils/database';
+import FamilywalletNativeModule from '../../../modules/familywallet-native/src/FamilywalletNativeModule';
 
 export default function Home() {
   const db = useSQLiteContext();
@@ -58,9 +59,7 @@ export default function Home() {
                 { 
                   text: "Allow", 
                   onPress: () => {
-                    import('../../modules/familywallet-native/src/FamilywalletNativeModule').then(m => {
-                      m.default.openNotificationSettings();
-                    });
+                    FamilywalletNativeModule.openNotificationSettings();
                   }
                 }
               ]
