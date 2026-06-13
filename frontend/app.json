@@ -13,7 +13,12 @@
     },
     "android": {
       "package": "com.dinesh.familywallet.v3",
-      "permissions": ["RECEIVE_SMS", "READ_SMS"],
+      "permissions": [
+        "RECEIVE_SMS",
+        "READ_SMS",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#111827",
         "foregroundImage": "./assets/images/logo.png"
@@ -46,7 +51,8 @@
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true

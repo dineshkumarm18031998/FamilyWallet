@@ -1,0 +1,7 @@
+$in = [System.IO.File]::OpenRead("C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\eas_log.txt")
+$out = [System.IO.File]::Create("C:\Users\dines\.gemini\antigravity\scratch\FamilyWallet\frontend\eas_log_unzipped.txt")
+$gzip = New-Object System.IO.Compression.GZipStream $in, ([System.IO.Compression.CompressionMode]::Decompress)
+$gzip.CopyTo($out)
+$gzip.Close()
+$out.Close()
+$in.Close()
