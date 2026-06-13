@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { setSession } from '../utils/database';
+import { supabase } from '../utils/supabaseClient';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
@@ -19,22 +20,32 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (phone.length >= 10 && password.length >= 6 && name.length >= 3) {
+    if (email.length > 5 && password.length >= 6 && name.length >= 2) {
       setLoading(true);
       try {
-        // Local offline registration fallback
-        setTimeout(() => {
+        const { error, data } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: { full_name: name }
+          }
+        });
+
+        if (error) {
+          Alert.alert('Registration Failed', error.message);
+        } else {
+          Alert.alert('Success', 'Account created! Please check your email to verify (if enabled), or login directly.');
           router.replace('/login');
-        }, 500);
-      } catch (err) {
-        Alert.alert('Error', 'Failed to register locally.');
+        }
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'Failed to register');
       } finally {
         setLoading(false);
       }
     }
   };
 
-  const isFormValid = phone.length >= 10 && password.length >= 6 && password === confirmPassword && name.length >= 2;
+  const isFormValid = email.length > 5 && password.length >= 6 && password === confirmPassword && name.length >= 2;
 
   return (
     <KeyboardAvoidingView 
@@ -66,15 +77,15 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Mobile Number</Text>
+          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Email Address</Text>
           <TextInput
             style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-            placeholder="Enter 10-digit number"
+            placeholder="Enter your email"
             placeholderTextColor="#9ca3af"
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-            maxLength={10}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
           />
         </View>
 

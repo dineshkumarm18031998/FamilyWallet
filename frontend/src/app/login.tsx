@@ -4,9 +4,10 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { setSession } from '../utils/database';
+import { supabase } from '../utils/supabaseClient';
 
 export default function LoginScreen() {
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -16,18 +17,41 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (phone.length >= 10 && password.length >= 6) {
+    if (email.length > 5 && password.length >= 6) {
       setLoading(true);
       try {
-        // Local SQLite based session since there is no backend
-        await setSession(db, "local_user_token_" + phone);
-        // Navigate immediately to the Dashboard
-        router.replace('/(tabs)');
-      } catch (err) {
-        Alert.alert('Error', 'Failed to save session locally.');
+        const { error, data } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+        
+        if (error) {
+          Alert.alert('Login Failed', error.message);
+        } else {
+          // Sync local SQLite session state
+          await setSession(db, data.session?.access_token || 'supabase_token');
+          router.replace('/(tabs)');
+        }
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'Failed to login');
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (email.length < 5) {
+      Alert.alert('Required', 'Please enter your email address first.');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    setLoading(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Check Email', 'A password reset link has been sent to your email.');
     }
   };
 
@@ -46,15 +70,15 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Mobile Number</Text>
+          <Text style={[styles.label, isDark ? styles.textLight : styles.textDark]}>Email Address</Text>
           <TextInput
             style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-            placeholder="Enter 10-digit number"
+            placeholder="Enter your email"
             placeholderTextColor="#9ca3af"
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-            maxLength={10}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
           />
         </View>
 
@@ -72,15 +96,16 @@ export default function LoginScreen() {
 
         <TouchableOpacity 
           style={styles.forgotPasswordContainer} 
-          onPress={() => alert('Password reset link has been sent to your registered mobile number if it exists.')}
+          onPress={handleForgotPassword}
+          disabled={loading}
         >
           <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.button, phone.length >= 10 && password.length >= 6 ? styles.buttonActive : styles.buttonInactive]} 
+          style={[styles.button, email.length > 5 && password.length >= 6 ? styles.buttonActive : styles.buttonInactive]} 
           onPress={handleLogin}
-          disabled={phone.length < 10 || password.length < 6 || loading}
+          disabled={email.length <= 5 || password.length < 6 || loading}
         >
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Log In</Text>}
         </TouchableOpacity>
