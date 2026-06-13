@@ -5,7 +5,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { syncWithCloud, clearSession } from '../../utils/database';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { documentDirectory, writeAsStringAsync, readAsStringAsync } from 'expo-file-system';
+import { Paths, File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -99,8 +99,9 @@ export default function Settings() {
       const budgets = await db.getAllAsync('SELECT * FROM budgets');
       
       const backupData = JSON.stringify({ expenses, settings, budgets }, null, 2);
-      const fileUri = (documentDirectory || '') + 'FamilyWallet_Backup.json';
-      await writeAsStringAsync(fileUri, backupData);
+      const fileUri = Paths.document.uri + 'FamilyWallet_Backup.json';
+      const file = new File(fileUri);
+      await file.write(backupData);
       
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri);
@@ -114,7 +115,8 @@ export default function Settings() {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const jsonString = await readAsStringAsync(result.assets[0].uri);
+        const file = new File(result.assets[0].uri);
+        const jsonString = await file.text();
         const data = JSON.parse(jsonString);
         
         if (data.expenses && Array.isArray(data.expenses)) {
