@@ -11,6 +11,11 @@
     "ios": {
       "icon": "./assets/expo.icon"
     },
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#111827"
+    },
     "android": {
       "package": "com.dinesh.familywallet.v3",
       "permissions": [
@@ -36,13 +41,8 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#111827",
-          "android": {
-            "splash": {
-              "image": "./assets/images/logo.png",
-              "resizeMode": "contain",
-              "backgroundColor": "#111827"
-            }
-          }
+          "image": "./assets/images/splash.png",
+          "imageWidth": 200
         }
       ],
       "expo-sqlite",
