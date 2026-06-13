@@ -200,7 +200,7 @@ export default function Home() {
       <Modal visible={fabOpen} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setFabOpen(false)}>
           <View style={styles.fabMenu}>
-            <FabMenuItem icon="scan" color="#8b5cf6" label="Scan Receipt" onPress={() => { setFabOpen(false); router.push('/scanner'); }} />
+            <FabMenuItem icon="scan" color="#8b5cf6" label="Scan Receipt" onPress={() => { setFabOpen(false); router.push('/scanner' as any); }} />
             <FabMenuItem icon="cart" color="#f59e0b" label="Add Grocery" onPress={() => { setFabOpen(false); router.push({ pathname: '/add-expense', params: { category: 'Groceries' }}); }} />
             <FabMenuItem icon="fast-food" color="#ef4444" label="Add Food" onPress={() => { setFabOpen(false); router.push({ pathname: '/add-expense', params: { category: 'Food' }}); }} />
             <FabMenuItem icon="phone-portrait" color="#3b82f6" label="Add Recharge" onPress={() => { setFabOpen(false); router.push({ pathname: '/add-expense', params: { category: 'Recharge' }}); }} />
