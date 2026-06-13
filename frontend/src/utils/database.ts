@@ -38,9 +38,21 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
       trackDTH INTEGER DEFAULT 0,
       sharePrivateDetails INTEGER DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS budgets (
+      category TEXT PRIMARY KEY,
+      target INTEGER NOT NULL
+    );
   `);
 
   try {
+    // Seed default budgets
+    await db.execAsync(`
+      INSERT OR IGNORE INTO budgets (category, target) VALUES 
+      ('Groceries', 15000), 
+      ('Food', 5000), 
+      ('Recharge', 2000), 
+      ('Utilities', 4000);
+    `);
     // Migrate old databases seamlessly
     await db.execAsync("ALTER TABLE expenses ADD COLUMN source TEXT DEFAULT 'Manual';");
     await db.execAsync("ALTER TABLE review_queue ADD COLUMN confidence INTEGER DEFAULT 100;");
