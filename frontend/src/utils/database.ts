@@ -14,7 +14,8 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
       date TEXT NOT NULL,
       notes TEXT,
       source TEXT DEFAULT 'Manual',
-      syncStatus TEXT DEFAULT 'Pending'
+      syncStatus TEXT DEFAULT 'Pending',
+      userId TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS session (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -62,6 +63,7 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
 
   const migrations = [
     "ALTER TABLE expenses ADD COLUMN source TEXT DEFAULT 'Manual';",
+    "ALTER TABLE expenses ADD COLUMN userId TEXT DEFAULT '';",
     "ALTER TABLE review_queue ADD COLUMN confidence INTEGER DEFAULT 100;",
     "ALTER TABLE review_queue ADD COLUMN preview TEXT;",
     "ALTER TABLE review_queue ADD COLUMN timestamp INTEGER;",
@@ -90,12 +92,15 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
 };
 
 export const addExpense = async (db: SQLite.SQLiteDatabase, amount: number, merchant: string, category: string, visibility: string, notes: string, source: string = 'Manual') => {
+  const sessionUserId = await getSession(db);
+  const userId = sessionUserId || '';
+  
   const date = new Date().toISOString();
   const id = Crypto.randomUUID();
   
   await db.runAsync(
-    'INSERT INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, amount, merchant, category, visibility, date, notes, source, 'Pending']
+    'INSERT INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, amount, merchant, category, visibility, date, notes, source, 'Pending', userId]
   );
 
   // Auto-sync trigger
@@ -133,8 +138,11 @@ export const getAllExpenses = async (db: SQLite.SQLiteDatabase) => {
 };
 
 export const getWalletTotals = async (db: SQLite.SQLiteDatabase) => {
-  const sharedResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Shared'");
-  const privateResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Private'");
+  const sessionUserId = await getSession(db);
+  const userId = sessionUserId || '';
+
+  const sharedResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Shared' OR (visibility = 'Private' AND userId != ?)", [userId]);
+  const privateResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Private' AND userId = ?", [userId]);
   
   return {
     sharedTotal: Math.round((sharedResult?.total || 0) * 100) / 100,
@@ -206,8 +214,8 @@ export const syncWithCloud = async (db: SQLite.SQLiteDatabase) => {
     if (pullData.success && pullData.data) {
       for (const exp of pullData.data) {
         await db.runAsync(
-          'INSERT OR IGNORE INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [exp.id, exp.amount, exp.merchant, exp.category, exp.visibility, exp.date, exp.notes, exp.source, 'Synced']
+          'INSERT OR REPLACE INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [exp.id, exp.amount, exp.merchant, exp.category, exp.visibility, exp.date, exp.notes, exp.source, 'Synced', exp.userId]
         );
       }
     }
@@ -248,11 +256,14 @@ export const updateExpense = async (db: SQLite.SQLiteDatabase, id: string, amoun
 };
 
 export const getWalletTotalsForMonth = async (db: SQLite.SQLiteDatabase, year: number, month: number) => {
+  const sessionUserId = await getSession(db);
+  const userId = sessionUserId || '';
+
   const start = new Date(year, month - 1, 1, 0, 0, 0).toISOString();
   const end = new Date(year, month, 0, 23, 59, 59).toISOString();
 
-  const sharedResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Shared' AND date >= ? AND date <= ?", [start, end]);
-  const privateResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Private' AND date >= ? AND date <= ?", [start, end]);
+  const sharedResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE (visibility = 'Shared' OR (visibility = 'Private' AND userId != ?)) AND date >= ? AND date <= ?", [userId, start, end]);
+  const privateResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Private' AND userId = ? AND date >= ? AND date <= ?", [userId, start, end]);
   
   return {
     sharedTotal: Math.round((sharedResult?.total || 0) * 100) / 100,

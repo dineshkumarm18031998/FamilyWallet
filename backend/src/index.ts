@@ -63,18 +63,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/family/create', async (req, res) => {
   const { userId, name } = req.body;
   try {
-    // 1. Ensure the user actually exists in the cloud DB (Local-First sync)
-    await prisma.user.upsert({
-      where: { id: userId },
-      update: {},
-      create: { 
-        id: userId, 
-        phone: userId, // Dummy phone to satisfy unique constraint
-        password: '',
-        name: 'Local User'
-      }
-    });
-
+    // The frontend guarantees the user exists via /api/auth/register or login
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const family = await prisma.family.create({
       data: {
@@ -264,14 +253,28 @@ app.get('/api/sync/pull/:userId', async (req, res) => {
     });
     const familyIds = memberships.map(m => m.familyId);
 
-    // 2. Pull all personal expenses OR shared expenses from their families
+    // 2. Find all members in these families who have sharePrivateDetails = true
+    const sharingMembers = await prisma.familyMember.findMany({
+       where: { familyId: { in: familyIds } },
+       include: { user: { include: { settings: true } } }
+    });
+    const sharingUserIds = sharingMembers
+       .filter(m => m.user?.settings?.sharePrivateDetails === true)
+       .map(m => m.userId);
+
+    // 3. Pull all personal expenses OR shared expenses OR approved private expenses
     const newExpenses = await prisma.expense.findMany({
       where: {
         OR: [
-          { userId: userId },
+          { userId: userId }, // My own expenses
           {
             familyId: { in: familyIds },
-            visibility: 'Shared'
+            visibility: 'Shared' // Family shared expenses
+          },
+          {
+            familyId: { in: familyIds },
+            userId: { in: sharingUserIds },
+            visibility: 'Private' // Private expenses of members who opted to share
           }
         ]
       },

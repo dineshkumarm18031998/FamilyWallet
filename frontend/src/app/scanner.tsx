@@ -55,8 +55,14 @@ export default function ScannerScreen() {
         await addExpense(db, result.amount, result.merchant, result.category || 'Shopping', 'Shared', result.upiId ? `UPI ID: ${result.upiId}` : '', 'Scanner');
         Alert.alert('Receipt Scanned!', `Captured ₹${result.amount} at ${result.merchant}`);
         router.back();
+      } else if (result.merchant && result.merchant !== "Unknown Merchant") {
+        Alert.alert('Scan Incomplete', `We found "${result.merchant}" but couldn't read the amount clearly. Please enter it manually.`);
+        router.replace({
+          pathname: '/add-expense',
+          params: { merchant: result.merchant, source: 'Scanner' }
+        });
       } else {
-        Alert.alert('Scan Failed', 'Could not clearly read the Total Amount from the receipt. Please try again.');
+        Alert.alert('Scan Failed', 'Could not read any useful details from the receipt. Please try again.');
         setCapturedImage(null);
       }
     } catch (e) {

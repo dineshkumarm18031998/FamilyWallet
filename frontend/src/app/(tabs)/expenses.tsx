@@ -10,6 +10,7 @@ export default function Expenses() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState('');
   
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -21,6 +22,9 @@ export default function Expenses() {
   const loadData = useCallback(async () => {
     const data = await getAllExpenses(db);
     setExpenses(data);
+    const { getSession } = await import('../../utils/database');
+    const sid = await getSession(db);
+    setCurrentUserId(sid || '');
   }, [db]);
 
   useFocusEffect(
@@ -105,14 +109,16 @@ export default function Expenses() {
         
         <View style={styles.txRight}>
           <Text style={[styles.txAmount, { color: '#ef4444' }]} numberOfLines={1} adjustsFontSizeToFit>-₹{item.amount.toLocaleString('en-IN')}</Text>
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
-              <Ionicons name="pencil" size={16} color="#3b82f6" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
-              <Ionicons name="trash" size={16} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
+          {item.userId === currentUserId && (
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
+                <Ionicons name="pencil" size={16} color="#3b82f6" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
+                <Ionicons name="trash" size={16} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     );

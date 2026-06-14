@@ -22,8 +22,8 @@ export const processImageOCR = async (base64Image: string) => {
     
     // 1. Amount Extraction (Max Value Heuristic)
     let finalAmount = 0;
-    let explicitMatch = text.match(/(?:total|amount|sum|net|balance|grand\s*total|paid)[\s:.-]*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d{2})?)/i) 
-                      || text.match(/(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d{2})?)/i)
+    let explicitMatch = text.match(/(?:total|amount(?:\s*paid)?|sum|net|balance|grand\s*total|paid)[\s:.-]*(?:₹|rs\.?|inr|[$£€?])?[\s\n]*([\d,]+(?:\.\d{2})?)/i) 
+                      || text.match(/(?:₹|rs\.?|inr|[$£€?])\s*([\d,]+(?:\.\d{2})?)/i)
                       || text.match(/[\n\s]((?:\d+,)*\d+\.\d{2})[\n\s]*$/);
                       
     if (explicitMatch) {

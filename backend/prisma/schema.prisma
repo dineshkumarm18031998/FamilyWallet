@@ -69,6 +69,7 @@ model Settings {
   trackFood           Boolean @default(true)
   trackRecharge       Boolean @default(true)
   trackDTH            Boolean @default(true)
+  trackUtilities      Boolean @default(true)
   sharePrivateDetails Boolean @default(false)
   darkMode            Boolean @default(false)
   language            String  @default("English")
@@ -77,13 +78,16 @@ model Settings {
 }
 
 model ReviewQueue {
-  id       String   @id @default(uuid())
-  amount   Float
-  merchant String
-  category String
-  date     DateTime @default(now())
-  source   String // "SMS" or "Notification"
-  status   String   @default("Pending") // "Pending", "Approved", "Ignored"
+  id         String   @id @default(uuid())
+  amount     Float
+  merchant   String
+  category   String
+  date       DateTime @default(now())
+  source     String // "SMS" or "Notification"
+  status     String   @default("Pending") // "Pending", "Approved", "Ignored"
+  confidence Int      @default(100)
+  preview    String?
+  timestamp  BigInt?
 
   userId String
   user   User   @relation(fields: [userId], references: [id])

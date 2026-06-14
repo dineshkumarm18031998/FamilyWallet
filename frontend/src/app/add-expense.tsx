@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, useColorScheme, ActivityIndicator, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { addExpense } from '../utils/database';
@@ -8,14 +8,15 @@ import { addExpense } from '../utils/database';
 export default function AddExpenseModal() {
   const db = useSQLiteContext();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const [amount, setAmount] = useState('');
-  const [merchant, setMerchant] = useState('');
+  const [amount, setAmount] = useState((params.amount as string) || '');
+  const [merchant, setMerchant] = useState((params.merchant as string) || '');
   const [category, setCategory] = useState('Groceries');
   const [visibility, setVisibility] = useState('Shared'); // 'Shared' or 'Private'
-  const [source, setSource] = useState('Manual');
+  const [source, setSource] = useState((params.source as string) || 'Manual');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
