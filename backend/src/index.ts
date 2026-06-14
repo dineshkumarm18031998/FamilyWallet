@@ -35,8 +35,7 @@ app.post('/api/auth/register', async (req, res) => {
     const user = await prisma.user.create({
       data: { phone, password: hashedPassword, name }
     });
-    
-    res.json({ success: true, token: user.id });
+    res.json({ success: true, token: user.id, phone: user.phone, name: user.name });
   } catch (err) {
     res.status(500).json({ error: 'Database error during registration' });
   }
@@ -52,8 +51,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ error: 'Invalid password' });
-
-    res.json({ success: true, token: user.id });
+    res.json({ success: true, token: user.id, phone: user.phone, name: user.name });
   } catch (err) {
     res.status(500).json({ error: 'Database error during login' });
   }
