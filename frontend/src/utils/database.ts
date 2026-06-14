@@ -5,7 +5,6 @@ import * as Crypto from 'expo-crypto';
 export const initDB = async (db: SQLite.SQLiteDatabase) => {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
-    DROP TABLE IF EXISTS expenses;
     CREATE TABLE IF NOT EXISTS expenses (
       id TEXT PRIMARY KEY,
       amount REAL NOT NULL,
@@ -39,6 +38,7 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
       trackFood INTEGER DEFAULT 0,
       trackRecharge INTEGER DEFAULT 0,
       trackDTH INTEGER DEFAULT 0,
+      trackUtilities INTEGER DEFAULT 0,
       sharePrivateDetails INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS budgets (
@@ -56,21 +56,34 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
       ('Recharge', 2000), 
       ('Utilities', 4000);
     `);
-    // Migrate old databases seamlessly
-    await db.execAsync("ALTER TABLE expenses ADD COLUMN source TEXT DEFAULT 'Manual';");
-    await db.execAsync("ALTER TABLE review_queue ADD COLUMN confidence INTEGER DEFAULT 100;");
-    await db.execAsync("ALTER TABLE review_queue ADD COLUMN preview TEXT;");
-    await db.execAsync("ALTER TABLE review_queue ADD COLUMN timestamp INTEGER;");
   } catch (e) {
-    // Column already exists, ignore
+    console.error(e);
+  }
+
+  const migrations = [
+    "ALTER TABLE expenses ADD COLUMN source TEXT DEFAULT 'Manual';",
+    "ALTER TABLE review_queue ADD COLUMN confidence INTEGER DEFAULT 100;",
+    "ALTER TABLE review_queue ADD COLUMN preview TEXT;",
+    "ALTER TABLE review_queue ADD COLUMN timestamp INTEGER;",
+    "ALTER TABLE tracking_settings ADD COLUMN trackUtilities INTEGER DEFAULT 0;",
+    "ALTER TABLE session ADD COLUMN phone TEXT;",
+    "ALTER TABLE session ADD COLUMN name TEXT;"
+  ];
+
+  for (const m of migrations) {
+    try {
+      await db.execAsync(m);
+    } catch (e) {
+      // Column already exists, ignore
+    }
   }
 
   try {
     // Initialize default tracking settings if empty (Default ON)
-    await db.execAsync("INSERT OR IGNORE INTO tracking_settings (id, trackGrocery, trackFood, trackRecharge, trackDTH, sharePrivateDetails) VALUES (1, 1, 1, 1, 1, 0);");
+    await db.execAsync("INSERT OR IGNORE INTO tracking_settings (id, trackGrocery, trackFood, trackRecharge, trackDTH, trackUtilities, sharePrivateDetails) VALUES (1, 1, 1, 1, 1, 1, 0);");
     
     // Force migrate existing users who had it stuck on 0
-    await db.execAsync("UPDATE tracking_settings SET trackGrocery=1, trackFood=1, trackRecharge=1, trackDTH=1 WHERE id=1 AND trackGrocery=0 AND trackFood=0 AND trackRecharge=0 AND trackDTH=0;");
+    await db.execAsync("UPDATE tracking_settings SET trackGrocery=1, trackFood=1, trackRecharge=1, trackDTH=1, trackUtilities=1 WHERE id=1 AND trackGrocery=0 AND trackFood=0 AND trackRecharge=0 AND trackDTH=0;");
   } catch (e) {
     console.error(e);
   }
@@ -91,13 +104,18 @@ export const addExpense = async (db: SQLite.SQLiteDatabase, amount: number, merc
   return id;
 };
 
-export const setSession = async (db: SQLite.SQLiteDatabase, userId: string) => {
-  await db.runAsync('INSERT OR REPLACE INTO session (id, userId) VALUES (1, ?)', [userId]);
+export const setSession = async (db: SQLite.SQLiteDatabase, userId: string, phone: string = '', name: string = '') => {
+  await db.runAsync('INSERT OR REPLACE INTO session (id, userId, phone, name) VALUES (1, ?, ?, ?)', [userId, phone, name]);
 };
 
 export const getSession = async (db: SQLite.SQLiteDatabase) => {
-  const row: any = await db.getFirstAsync('SELECT userId FROM session WHERE id = 1');
+  const row: any = await db.getFirstAsync('SELECT * FROM session WHERE id = 1');
   return row?.userId || null;
+};
+
+export const getProfile = async (db: SQLite.SQLiteDatabase) => {
+  const row: any = await db.getFirstAsync('SELECT * FROM session WHERE id = 1');
+  return row ? { userId: row.userId, phone: row.phone, name: row.name } : null;
 };
 
 export const clearSession = async (db: SQLite.SQLiteDatabase) => {
@@ -132,9 +150,41 @@ export const getCategoryTotals = async (db: SQLite.SQLiteDatabase) => {
   }));
 };
 
+export const getHistoricalTrends = async (db: SQLite.SQLiteDatabase, timeframe: 'Weekly' | 'Monthly' | 'Yearly') => {
+  let query = '';
+  if (timeframe === 'Weekly') {
+    query = `
+      SELECT strftime('%Y-%W', date) as bucket, category, SUM(amount) as total 
+      FROM expenses 
+      WHERE date >= date('now', '-84 days')
+      GROUP BY bucket, category 
+      ORDER BY bucket ASC
+    `;
+  } else if (timeframe === 'Monthly') {
+    query = `
+      SELECT strftime('%Y-%m', date) as bucket, category, SUM(amount) as total 
+      FROM expenses 
+      WHERE date >= date('now', '-12 months')
+      GROUP BY bucket, category 
+      ORDER BY bucket ASC
+    `;
+  } else {
+    query = `
+      SELECT strftime('%Y', date) as bucket, category, SUM(amount) as total 
+      FROM expenses 
+      GROUP BY bucket, category 
+      ORDER BY bucket ASC
+    `;
+  }
+  
+  const result: any[] = await db.getAllAsync(query);
+  return result;
+};
+
 export const syncWithCloud = async (db: SQLite.SQLiteDatabase) => {
   try {
-    const userId = await getSession(db) || "user_123_temp";
+    const userId = await getSession(db);
+    if (!userId) return { success: false, message: 'Not logged in' };
     
     // 1. PUSH PENDING
     const pendingExpenses = await db.getAllAsync("SELECT * FROM expenses WHERE syncStatus = 'Pending'");
@@ -173,12 +223,15 @@ export const deleteExpense = async (db: SQLite.SQLiteDatabase, id: string) => {
   await db.runAsync('DELETE FROM expenses WHERE id = ?', [id]);
   
   try {
-    const userId = await getSession(db) || "user_123_temp";
-    await fetch(`${API_URL}/sync/delete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, expenseId: id })
-    });
+    const userId = await getSession(db);
+    if (userId) {
+      // Tell cloud to delete
+      fetch(`${API_URL}/sync/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, expenseId: id })
+      }).catch(console.warn);
+    }
   } catch (e) {
     console.warn('Failed to delete on cloud:', e);
   }

@@ -13,6 +13,7 @@ export default function History() {
   const isDark = colorScheme === 'dark';
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('day');
   const [expenses, setExpenses] = useState<any[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
@@ -199,10 +200,24 @@ export default function History() {
       </View>
 
       {period === 'day' && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+          <TouchableOpacity 
+            style={[styles.dateSelectorBtn, isDark ? styles.cardDark : styles.cardLight]} 
+            onPress={() => setCalendarOpen(!calendarOpen)}>
+            <Ionicons name="calendar-outline" size={20} color={isDark ? '#f9fafb' : '#111827'} />
+            <Text style={[styles.dateSelectorText, isDark ? styles.textLight : styles.textDark]}>
+              {new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </Text>
+            <Ionicons name={calendarOpen ? "chevron-up" : "chevron-down"} size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {period === 'day' && calendarOpen && (
         <View style={[styles.calendarContainer, isDark ? styles.cardDark : styles.cardLight]}>
           <Calendar
             current={selectedDate}
-            onDayPress={handleDayPress}
+            onDayPress={(day: any) => { handleDayPress(day); setCalendarOpen(false); }}
             onMonthChange={handleMonthChange}
             markedDates={markedDates}
             theme={{
@@ -260,7 +275,10 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   tabTextActive: { color: '#ffffff' },
 
-  calendarContainer: { marginHorizontal: 20, borderRadius: 24, padding: 8, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+  dateSelectorBtn: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, justifyContent: 'space-between' },
+  dateSelectorText: { fontSize: 15, fontWeight: '700', flex: 1, marginLeft: 12 },
+
+  calendarContainer: { marginHorizontal: 20, borderRadius: 24, padding: 8, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, marginBottom: 16 },
   cardLight: { backgroundColor: '#FFFFFF', borderColor: '#F3F4F6', borderWidth: 1 },
   cardDark: { backgroundColor: '#141414', borderColor: '#262626', borderWidth: 1 },
   

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ export default function ReviewInboxScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [inbox, setInbox] = useState<any[]>([]);
+  const [visibilityMap, setVisibilityMap] = useState<Record<number, boolean>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -25,8 +26,9 @@ export default function ReviewInboxScreen() {
   );
 
   const handleApprove = async (item: any) => {
+    const visibility = visibilityMap[item.id] ? 'Shared' : 'Private';
     // Save to real expenses table
-    await addExpense(db, item.amount, item.merchant, item.category, 'Private', '', item.source);
+    await addExpense(db, item.amount, item.merchant, item.category, visibility, '', item.source);
     // Mark as approved
     await db.runAsync("UPDATE review_queue SET status = 'Approved' WHERE id = ?", [item.id]);
     setInbox(prev => prev.filter(i => i.id !== item.id));
@@ -62,7 +64,7 @@ export default function ReviewInboxScreen() {
               <View key={item.id} style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
                 <View style={styles.cardHeader}>
                   <View>
-                    <Text style={[styles.merchantName, isDark ? styles.textLight : styles.textDark]}>{item.merchant}</Text>
+                    <Text style={[styles.merchantName, isDark ? styles.textLight : styles.textDark]} numberOfLines={1} adjustsFontSizeToFit>{item.merchant}</Text>
                     <Text style={styles.sourceText}>via {item.source}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
@@ -79,6 +81,21 @@ export default function ReviewInboxScreen() {
                 </View>
 
                 <Text style={styles.originalText}>"{item.preview || `Captured securely from ${item.source}`}"</Text>
+
+                <View style={styles.visibilityRow}>
+                  <Text style={[styles.visibilityLabel, isDark ? styles.textLight : styles.textDark]}>Visibility</Text>
+                  <View style={styles.visibilityToggle}>
+                    <Text style={[styles.visibilityText, !visibilityMap[item.id] && styles.visibilityActive]}>Private</Text>
+                    <Switch
+                      trackColor={{ false: '#d1d5db', true: '#10b981' }}
+                      thumbColor={'#ffffff'}
+                      onValueChange={(val) => setVisibilityMap(prev => ({...prev, [item.id]: val}))}
+                      value={!!visibilityMap[item.id]}
+                      style={{ marginHorizontal: 8, transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+                    />
+                    <Text style={[styles.visibilityText, visibilityMap[item.id] && styles.visibilityActive]}>Shared</Text>
+                  </View>
+                </View>
 
                 <View style={styles.actionRow}>
                   <TouchableOpacity style={[styles.actionBtn, styles.btnIgnore]} onPress={() => handleIgnore(item.id)}>
@@ -113,8 +130,8 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 100 },
   emptyText: { fontSize: 22, fontWeight: '800', marginTop: 16 },
   emptySub: { fontSize: 16, color: '#94a3b8', marginTop: 8 },
-  card: { padding: 24, borderRadius: 28, marginBottom: 20 },
-  cardLight: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3f4f6' },
+  card: { padding: 20, borderRadius: 20, marginBottom: 20 },
+  cardLight: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb' },
   cardDark: { backgroundColor: '#141414', borderWidth: 1, borderColor: '#262626' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   merchantName: { fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
@@ -123,12 +140,17 @@ const styles = StyleSheet.create({
   suggestionBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: 12, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.3)' },
   suggestionText: { color: '#f59e0b', marginLeft: 8, fontSize: 14, fontWeight: '600' },
   originalText: { fontSize: 13, fontStyle: 'italic', color: '#9ca3af', marginBottom: 24, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(156, 163, 175, 0.2)' },
-  actionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 16 },
-  btnIgnore: { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
+  actionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14, borderRadius: 14 },
+  btnIgnore: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#ef4444' },
   btnIgnoreText: { color: '#ef4444', fontWeight: '800', marginLeft: 6, letterSpacing: 0.5 },
   btnApprove: { backgroundColor: '#10b981' },
   btnApproveText: { color: '#070b14', fontWeight: '900', marginLeft: 6, letterSpacing: 0.5 },
   confidenceBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, marginTop: 8 },
-  confidenceText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 }
+  confidenceText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
+  visibilityRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(156, 163, 175, 0.1)', padding: 12, borderRadius: 12, marginBottom: 16 },
+  visibilityLabel: { fontSize: 14, fontWeight: '700' },
+  visibilityToggle: { flexDirection: 'row', alignItems: 'center' },
+  visibilityText: { fontSize: 12, fontWeight: '600', color: '#9ca3af' },
+  visibilityActive: { color: '#10b981', fontWeight: '800' }
 });

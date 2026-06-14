@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch, Alert, ActivityIndicator, Appearance, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
-import { syncWithCloud, clearSession, getSession } from '../../utils/database';
+import { syncWithCloud, clearSession, getSession, getProfile } from '../../utils/database';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { API_URL } from '../../utils/apiConfig';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,13 +20,14 @@ export default function Settings() {
   const [trackFood, setTrackFood] = useState(true);
   const [trackRecharge, setTrackRecharge] = useState(true);
   const [trackDTH, setTrackDTH] = useState(true);
+  const [trackUtilities, setTrackUtilities] = useState(true);
   const [sharePrivate, setSharePrivate] = useState(false);
 
   const [darkMode, setDarkMode] = useState(isDark);
   const [isSyncing, setIsSyncing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [profileName, setProfileName] = useState('Dinesh');
-  const [profilePhone, setProfilePhone] = useState('+91 6380661637');
+  const [profileName, setProfileName] = useState('Loading...');
+  const [profilePhone, setProfilePhone] = useState('');
   const router = useRouter();
 
   useFocusEffect(
@@ -39,7 +40,17 @@ export default function Settings() {
             setTrackFood(s.trackFood === 1);
             setTrackRecharge(s.trackRecharge === 1);
             setTrackDTH(s.trackDTH === 1);
+            setTrackUtilities(s.trackUtilities === 1);
             setSharePrivate(s.sharePrivateDetails === 1);
+          }
+        } catch(e) {
+          console.error(e);
+        }
+        try {
+          const prof = await getProfile(db);
+          if (prof) {
+            setProfileName(prof.name || 'User');
+            setProfilePhone(prof.phone || '');
           }
         } catch(e) {
           console.error(e);
@@ -55,12 +66,14 @@ export default function Settings() {
     
     if (key === 'sharePrivateDetails') {
       try {
-        const userId = await getSession(db) || "user_123_temp";
-        await fetch(`${API_URL}/settings/update`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, sharePrivateDetails: value })
-        });
+        const userId = await getSession(db);
+        if (userId) {
+          await fetch(`${API_URL}/settings/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, sharePrivateDetails: value })
+          });
+        }
       } catch (e) {
         console.warn('Failed to sync setting:', e);
       }
@@ -202,6 +215,7 @@ export default function Settings() {
         <SettingRow icon="fast-food-outline" label="Track Food" type="toggle" value={trackFood} onToggle={(v:boolean) => updateSetting('trackFood', v, setTrackFood)} />
         <SettingRow icon="phone-portrait-outline" label="Track Mobile Recharge" type="toggle" value={trackRecharge} onToggle={(v:boolean) => updateSetting('trackRecharge', v, setTrackRecharge)} />
         <SettingRow icon="tv-outline" label="Track DTH Recharge" type="toggle" value={trackDTH} onToggle={(v:boolean) => updateSetting('trackDTH', v, setTrackDTH)} />
+        <SettingRow icon="flash-outline" label="Track Utility Bills" type="toggle" value={trackUtilities} onToggle={(v:boolean) => updateSetting('trackUtilities', v, setTrackUtilities)} />
       </View>
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Privacy & Sharing</Text>

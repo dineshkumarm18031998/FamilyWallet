@@ -53,7 +53,8 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
         }
       ],
-      "expo-image"
+      "expo-image",
+      "expo-share-intent"
     ],
     "experiments": {
       "typedRoutes": true

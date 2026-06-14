@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getSession } from '../../utils/database';
+import { getSession, clearSession } from '../../utils/database';
 import { API_URL } from '../../utils/apiConfig';
 
 export default function Family() {
@@ -45,6 +45,25 @@ export default function Family() {
       console.warn('Error fetching family:', error);
       setViewState('no_family');
     }
+  };
+
+  const handleLeaveFamily = () => {
+    Alert.alert(
+      "Leave Family",
+      "Are you sure you want to leave this family? You will no longer share expenses.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Leave", 
+          style: "destructive",
+          onPress: async () => {
+            await clearSession(db);
+            setViewState('no_family');
+            setFamilyData(null);
+          }
+        }
+      ]
+    );
   };
 
   const handleCreate = async () => {
@@ -168,14 +187,14 @@ export default function Family() {
     <ScrollView contentContainerStyle={styles.dashboardContainer}>
       <View style={styles.headerRow}>
         <Text style={[styles.title, isDark ? styles.textLight : styles.textDark]}>{familyData.name}</Text>
-        <TouchableOpacity style={styles.settingsBtn}>
-          <Ionicons name="settings-outline" size={24} color={isDark ? '#fff' : '#000'} />
+        <TouchableOpacity style={styles.settingsBtn} onPress={handleLeaveFamily}>
+          <Ionicons name="log-out-outline" size={24} color="#ef4444" />
         </TouchableOpacity>
       </View>
 
       <View style={[styles.statsCard, { backgroundColor: '#10b981' }]}>
         <Text style={styles.statsLabel}>Family Shared Total</Text>
-        <Text style={styles.statsAmount}>₹{familyData.sharedTotal.toLocaleString('en-IN')}</Text>
+        <Text style={styles.statsAmount}>₹{(familyData.sharedTotal || 0).toLocaleString('en-IN')}</Text>
       </View>
 
       <View style={styles.sectionHeader}>

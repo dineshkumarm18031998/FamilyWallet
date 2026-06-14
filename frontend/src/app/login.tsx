@@ -32,7 +32,7 @@ export default function LoginScreen() {
           Alert.alert('Login Failed', data.error || 'Invalid credentials');
         } else {
           // Sync local SQLite session state with token returned by your API
-          await setSession(db, data.token);
+          await setSession(db, data.token, data.phone, data.name || '');
 
           // PULL SYNC: Download cloud data into local SQLite
           try {

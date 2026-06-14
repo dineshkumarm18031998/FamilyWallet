@@ -60,14 +60,27 @@ export default function Expenses() {
       Alert.alert("Error", "Please fill all fields");
       return;
     }
-    await updateExpense(db, editingItem.id, parseFloat(editAmount), editMerchant, editCategory);
+    const parsedAmount = parseFloat(editAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert("Error", "Please enter a valid positive amount");
+      return;
+    }
+    await updateExpense(db, editingItem.id, parsedAmount, editMerchant, editCategory);
     setEditModalVisible(false);
     loadData();
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    const iconMap: any = { Food: 'fast-food', Groceries: 'cart', Recharge: 'phone-portrait' };
-    const colorMap: any = { Food: '#ef4444', Groceries: '#f59e0b', Recharge: '#3b82f6' };
+    const iconMap: Record<string, any> = { 
+      Food: 'fast-food', Groceries: 'cart', Recharge: 'phone-portrait', DTH: 'tv', 
+      Shopping: 'bag', Utilities: 'flash', Rent: 'home', Fuel: 'water', 
+      Medicine: 'medkit', Education: 'school', Travel: 'airplane', Other: 'receipt' 
+    };
+    const colorMap: Record<string, string> = { 
+      Food: '#ef4444', Groceries: '#f59e0b', Recharge: '#3b82f6', DTH: '#8b5cf6', 
+      Shopping: '#ec4899', Utilities: '#eab308', Rent: '#14b8a6', Fuel: '#f97316', 
+      Medicine: '#10b981', Education: '#6366f1', Travel: '#0ea5e9', Other: '#9ca3af' 
+    };
     const icon = iconMap[item.category] || 'receipt';
     const color = colorMap[item.category] || '#10b981';
     

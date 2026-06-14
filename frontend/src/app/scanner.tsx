@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { addExpense } from '../utils/database';
+import { processImageOCR } from '../utils/ocr';
 
 export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -44,37 +45,15 @@ export default function ScannerScreen() {
   const processReceipt = async (base64Image: string) => {
     setScanning(true);
     try {
-      // Free public OCR API for extracting text
-      const formData = new FormData();
-      formData.append('base64Image', `data:image/jpeg;base64,${base64Image}`);
-      formData.append('apikey', 'helloworld'); 
-      formData.append('language', 'eng');
-
-      const response = await fetch('https://api.ocr.space/parse/image', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
+      const result = await processImageOCR(base64Image);
       
-      if (result.IsErroredOnProcessing) {
+      if (!result || !result.success) {
         throw new Error("OCR Processing failed");
       }
 
-      const text = result.ParsedResults?.[0]?.ParsedText || "";
-      
-      // Simple mock parser logic for the receipt text
-      let amountMatch = text.match(/(?:total|amount|sum)[\s:]*₹?\s*([\d,]+(?:\.\d{2})?)/i) || text.match(/₹\s*([\d,]+(?:\.\d{2})?)/);
-      let merchantMatch = text.split('\n')[0]?.trim() || "Unknown Merchant";
-      
-      let finalAmount = 0;
-      if (amountMatch && amountMatch[1]) {
-        finalAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
-      }
-
-      if (finalAmount > 0) {
-        await addExpense(db, finalAmount, merchantMatch, 'Groceries', 'Shared', '', 'Scanner');
-        Alert.alert('Receipt Scanned!', `Captured ₹${finalAmount} at ${merchantMatch}`);
+      if (result.amount && result.amount > 0) {
+        await addExpense(db, result.amount, result.merchant, result.category || 'Shopping', 'Shared', result.upiId ? `UPI ID: ${result.upiId}` : '', 'Scanner');
+        Alert.alert('Receipt Scanned!', `Captured ₹${result.amount} at ${result.merchant}`);
         router.back();
       } else {
         Alert.alert('Scan Failed', 'Could not clearly read the Total Amount from the receipt. Please try again.');

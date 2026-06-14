@@ -1,5 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Modal, Pressable, PermissionsAndroid, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import { useShareIntent } from 'expo-share-intent';
+import { processImageOCR } from '../../utils/ocr';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +24,10 @@ export default function Home() {
   const [categoryStats, setCategoryStats] = useState<any[]>([]);
   const [fabOpen, setFabOpen] = useState(false);
   const [reviewCount, setReviewCount] = useState(0);
+  
+  // Share Intent Handling
+  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+  const [isProcessingShare, setIsProcessingShare] = useState(false);
 
   // Month tracking
   const currentDate = new Date();
@@ -48,6 +55,16 @@ export default function Home() {
           const res: any = await db.getFirstAsync("SELECT COUNT(*) as count FROM review_queue WHERE status = 'Pending'");
           setReviewCount(res?.count || 0);
         } catch(e) {}
+
+        // Background Cloud Sync
+        import('../../utils/database').then(({ syncWithCloud }) => {
+          syncWithCloud(db).then(() => {
+            // Silently refresh UI if sync brought new data
+            getRecentExpensesForMonth(db, currentYear, currentMonth, 3).then(setRecentTx);
+            getWalletTotalsForMonth(db, currentYear, currentMonth).then(setTotals);
+            getCategoryTotalsForPeriod(db, startStr, endStr).then((s: any) => setCategoryStats(s));
+          }).catch(console.warn);
+        });
       };
       loadData();
     }, [db, currentYear, currentMonth])
@@ -86,6 +103,45 @@ export default function Home() {
     }
     requestPermissions();
   }, []);
+
+  // Process Incoming Share Intents
+  useEffect(() => {
+    // expo-share-intent v7 uses `files` array and `text`
+    const hasFiles = shareIntent?.files && shareIntent.files.length > 0;
+    
+    if (hasShareIntent && hasFiles && !isProcessingShare) {
+      const handleSharedImage = async () => {
+        setIsProcessingShare(true);
+        try {
+          const imageUri = shareIntent.files![0].path;
+
+          const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: FileSystem.EncodingType.Base64 });
+          const result = await processImageOCR(base64);
+          
+          if (result && result.success && result.amount > 0) {
+            const date = new Date().toISOString();
+            const timestamp = Date.now();
+            await db.runAsync(
+              "INSERT INTO review_queue (amount, merchant, category, date, source, status, confidence, preview, timestamp) VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?, ?)",
+              [result.amount, result.merchant, result.category, date, "Shared Screenshot", 100, result.upiId ? `UPI: ${result.upiId}` : "Captured via Share", timestamp]
+            );
+            
+            setReviewCount(prev => prev + 1);
+            Alert.alert("Screenshot Processed", `Captured ₹${result.amount} from ${result.merchant}. It has been added to your Review Inbox!`);
+          } else {
+            Alert.alert("OCR Failed", "Could not detect a valid amount or UPI details from the shared image.");
+          }
+        } catch (e) {
+          Alert.alert("Error", "Failed to process shared image.");
+        } finally {
+          resetShareIntent();
+          setIsProcessingShare(false);
+        }
+      };
+      
+      handleSharedImage();
+    }
+  }, [hasShareIntent, shareIntent, isProcessingShare, db]);
 
   const getIconForCategory = (cat: string) => {
     const map: any = { Food: 'fast-food', Groceries: 'cart', Recharge: 'phone-portrait', DTH: 'tv', Shopping: 'bag', Utilities: 'flash', Rent: 'home', Fuel: 'car', Medicine: 'medkit', Education: 'school', Travel: 'airplane' };
@@ -136,7 +192,7 @@ export default function Home() {
             <View style={[styles.featureIconBox, { backgroundColor: isDark ? '#331a00' : '#fef3c7' }]}>
               <Ionicons name="mail-unread" size={20} color="#f59e0b" />
             </View>
-            <Text style={[styles.featureBtnText, isDark ? styles.textLight : styles.textDark]} numberOfLines={1} adjustsFontSizeToFit>Review Inbox</Text>
+            <Text style={[styles.featureBtnText, isDark ? styles.textLight : styles.textDark]} numberOfLines={2}>Review Inbox</Text>
             {reviewCount > 0 && (
               <View style={styles.badgeCount}>
                 <Text style={styles.badgeCountText}>{reviewCount}</Text>
@@ -148,7 +204,7 @@ export default function Home() {
             <View style={[styles.featureIconBox, { backgroundColor: isDark ? '#001a33' : '#dbeafe' }]}>
               <Ionicons name="pie-chart" size={20} color="#3b82f6" />
             </View>
-            <Text style={[styles.featureBtnText, isDark ? styles.textLight : styles.textDark]} numberOfLines={1} adjustsFontSizeToFit>Budgets</Text>
+            <Text style={[styles.featureBtnText, isDark ? styles.textLight : styles.textDark]} numberOfLines={2}>Budgets</Text>
           </TouchableOpacity>
         </View>
 
@@ -295,9 +351,9 @@ const styles = StyleSheet.create({
   cardAmount: { color: '#ffffff', fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   
   featureLinksRow: { flexDirection: 'row', gap: 16, marginBottom: 36 },
-  featureBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, minHeight: 76 },
-  featureIconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  featureBtnText: { fontSize: 15, fontWeight: '700', flex: 1 },
+  featureBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 20, minHeight: 76 },
+  featureIconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  featureBtnText: { fontSize: 15, fontWeight: '700', flex: 1, flexWrap: 'wrap' },
   badgeCount: { position: 'absolute', top: -8, right: -8, backgroundColor: '#ef4444', borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 2, borderColor: '#fff' },
   badgeCountText: { color: '#fff', fontSize: 10, fontWeight: '900' },
 

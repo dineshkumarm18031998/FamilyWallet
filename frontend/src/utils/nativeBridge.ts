@@ -22,6 +22,7 @@ export const initializeNativeEngine = (db: SQLite.SQLiteDatabase) => {
       if (category === 'Food' && !settings?.trackFood) shouldTrack = false;
       if (category === 'Recharge' && !settings?.trackRecharge) shouldTrack = false;
       if (category === 'DTH' && !settings?.trackDTH) shouldTrack = false;
+      if (category === 'Utilities' && !settings?.trackUtilities) shouldTrack = false;
 
       if (!shouldTrack) {
         console.log(`Ignored ${merchant} due to Tracking Settings being OFF for ${category}.`);

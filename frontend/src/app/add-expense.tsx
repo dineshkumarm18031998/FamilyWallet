@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, useColorScheme, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, useColorScheme, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -24,9 +24,14 @@ export default function AddExpenseModal() {
 
   const handleSave = async () => {
     if (!amount || !merchant || !category) return;
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert("Error", "Please enter a valid positive amount");
+      return;
+    }
     setLoading(true);
     try {
-      await addExpense(db, parseFloat(amount), merchant, category, visibility, notes, source);
+      await addExpense(db, parsedAmount, merchant, category, visibility, notes, source);
       router.back();
     } catch (e) {
       console.error(e);
