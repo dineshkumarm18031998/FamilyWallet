@@ -65,6 +65,18 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/family/create', async (req, res) => {
   const { userId, name } = req.body;
   try {
+    // 1. Ensure the user actually exists in the cloud DB (Local-First sync)
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { 
+        id: userId, 
+        phone: userId, // Dummy phone to satisfy unique constraint
+        password: '',
+        name: 'Local User'
+      }
+    });
+
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const family = await prisma.family.create({
       data: {
@@ -76,13 +88,10 @@ app.post('/api/family/create', async (req, res) => {
       },
       include: { members: true }
     });
-    // Also update user record
-    await prisma.user.update({
-      where: { id: userId },
-      data: { familyMembers: { connect: { id: family.members[0].id } } }
-    });
+    
     res.json({ success: true, family });
-  } catch (err) {
+  } catch (err: any) {
+    console.error("Family Create Error:", err);
     res.status(500).json({ error: 'Failed to create family' });
   }
 });
@@ -93,11 +102,24 @@ app.post('/api/family/join', async (req, res) => {
     const family = await prisma.family.findUnique({ where: { inviteCode } });
     if (!family) return res.status(404).json({ error: 'Invalid invite code' });
 
+    // Ensure the joining user exists in the cloud DB
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { 
+        id: userId, 
+        phone: userId, // Dummy phone
+        password: '',
+        name: 'Local User'
+      }
+    });
+
     const member = await prisma.familyMember.create({
       data: { userId, familyId: family.id, role: 'Member' }
     });
     res.json({ success: true, family });
-  } catch (err) {
+  } catch (err: any) {
+    console.error("Family Join Error:", err);
     res.status(500).json({ error: 'Failed to join family' });
   }
 });
@@ -162,6 +184,18 @@ app.post('/api/sync/push', async (req, res) => {
   }
 
   try {
+    // Ensure the syncing user exists in the cloud DB
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { 
+        id: userId, 
+        phone: userId, // Dummy phone
+        password: '',
+        name: 'Local User'
+      }
+    });
+
     const results = [];
     
     // Upsert expenses to prevent duplicates
@@ -228,10 +262,23 @@ app.get('/api/sync/pull/:userId', async (req, res) => {
   const { lastSyncTime } = req.query;
 
   try {
+    // 1. Get families this user belongs to
+    const memberships = await prisma.familyMember.findMany({
+      where: { userId },
+      select: { familyId: true }
+    });
+    const familyIds = memberships.map(m => m.familyId);
+
+    // 2. Pull all personal expenses OR shared expenses from their families
     const newExpenses = await prisma.expense.findMany({
       where: {
-        userId: userId,
-        // In a real scenario, check if date > lastSyncTime
+        OR: [
+          { userId: userId },
+          {
+            familyId: { in: familyIds },
+            visibility: 'Shared'
+          }
+        ]
       },
       orderBy: { date: 'desc' }
     });
