@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getSession } from '../../utils/database';
+import { API_URL } from '../../utils/apiConfig';
 
 export default function Family() {
   const colorScheme = useColorScheme();
@@ -15,6 +16,7 @@ export default function Family() {
   const [inviteCode, setInviteCode] = useState('');
   const [familyData, setFamilyData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -23,21 +25,72 @@ export default function Family() {
   );
 
   const fetchFamily = async () => {
-    setViewState('no_family');
+    try {
+      setViewState('loading');
+      const userId = await getSession(db);
+      if (!userId) {
+        setViewState('no_family');
+        return;
+      }
+      const response = await fetch(`${API_URL}/family/${userId}`);
+      const data = await response.json();
+      
+      if (data.hasFamily) {
+        setFamilyData(data.data);
+        setViewState('dashboard');
+      } else {
+        setViewState('no_family');
+      }
+    } catch (error) {
+      console.warn('Error fetching family:', error);
+      setViewState('no_family');
+    }
   };
 
   const handleCreate = async () => {
     if (!familyName) return;
     setLoading(true);
-    alert('Backend integration is disabled for the local offline version.');
-    setLoading(false);
+    try {
+      const userId = await getSession(db);
+      const response = await fetch(`${API_URL}/family/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, name: familyName })
+      });
+      const data = await response.json();
+      if (data.success) {
+        fetchFamily();
+      } else {
+        Alert.alert('Error', 'Failed to create family');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Network error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleJoin = async () => {
     if (!inviteCode) return;
     setLoading(true);
-    alert('Backend integration is disabled for the local offline version.');
-    setLoading(false);
+    try {
+      const userId = await getSession(db);
+      const response = await fetch(`${API_URL}/family/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, inviteCode })
+      });
+      const data = await response.json();
+      if (data.success) {
+        fetchFamily();
+      } else {
+        Alert.alert('Error', data.error || 'Invalid invite code');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Network error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderNoFamily = () => (
@@ -58,10 +111,12 @@ export default function Family() {
 
   const renderCreate = () => (
     <View style={styles.centerContainer}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => setViewState('no_family')}>
-        <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
-      </TouchableOpacity>
-      <Text style={[styles.title, isDark ? styles.textLight : styles.textDark, { marginBottom: 30 }]}>Name your Family</Text>
+      <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', marginBottom: 30 }}>
+        <TouchableOpacity onPress={() => setViewState('no_family')} style={{ paddingRight: 16 }}>
+          <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
+        </TouchableOpacity>
+        <Text style={[styles.title, isDark ? styles.textLight : styles.textDark, { marginBottom: 0 }]}>Name your Family</Text>
+      </View>
       
       <View style={[styles.inputWrapper, isDark ? styles.inputWrapperDark : styles.inputWrapperLight]}>
         <Ionicons name="home-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
@@ -83,10 +138,12 @@ export default function Family() {
 
   const renderJoin = () => (
     <View style={styles.centerContainer}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => setViewState('no_family')}>
-        <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
-      </TouchableOpacity>
-      <Text style={[styles.title, isDark ? styles.textLight : styles.textDark, { marginBottom: 30 }]}>Enter Invite Code</Text>
+      <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', marginBottom: 30 }}>
+        <TouchableOpacity onPress={() => setViewState('no_family')} style={{ paddingRight: 16 }}>
+          <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
+        </TouchableOpacity>
+        <Text style={[styles.title, isDark ? styles.textLight : styles.textDark, { marginBottom: 0 }]}>Enter Invite Code</Text>
+      </View>
       
       <View style={[styles.inputWrapper, isDark ? styles.inputWrapperDark : styles.inputWrapperLight]}>
         <Ionicons name="keypad-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
@@ -131,15 +188,64 @@ export default function Family() {
 
       <View style={[styles.membersCard, isDark ? styles.cardDark : styles.cardLight]}>
         {familyData.members.map((m: any, i: any) => (
-          <View key={m.id} style={[styles.memberRow, i !== familyData.members.length - 1 && (isDark ? styles.borderDark : styles.borderLight)]}>
-            <View style={styles.memberAvatar}>
-              <Text style={styles.avatarText}>{m.name[0]}</Text>
-            </View>
-            <View style={styles.memberDetails}>
-              <Text style={[styles.memberName, isDark ? styles.textLight : styles.textDark]}>{m.name}</Text>
-              <Text style={styles.memberRole}>{m.role}</Text>
-            </View>
-            <Text style={[styles.memberSpent, isDark ? styles.textLight : styles.textDark]}>₹{m.spent.toLocaleString('en-IN')}</Text>
+          <View key={m.id}>
+            <TouchableOpacity 
+              style={[styles.memberRow, i !== familyData.members.length - 1 && !expandedMemberId && (isDark ? styles.borderDark : styles.borderLight)]}
+              onPress={() => setExpandedMemberId(expandedMemberId === m.id ? null : m.id)}
+            >
+              <View style={styles.memberAvatar}>
+                <Text style={styles.avatarText}>{m.name[0]}</Text>
+              </View>
+              <View style={styles.memberDetails}>
+                <Text style={[styles.memberName, isDark ? styles.textLight : styles.textDark]}>{m.name}</Text>
+                <Text style={styles.memberRole}>{m.role}</Text>
+              </View>
+              <View style={{alignItems: 'flex-end'}}>
+                <Text style={[styles.memberSpent, isDark ? styles.textLight : styles.textDark]}>₹{m.spent?.toLocaleString('en-IN')}</Text>
+                <Ionicons name={expandedMemberId === m.id ? "chevron-up" : "chevron-down"} size={16} color="#9ca3af" style={{marginTop: 4}} />
+              </View>
+            </TouchableOpacity>
+            
+            {/* Expanded Detailed View */}
+            {expandedMemberId === m.id && (
+              <View style={[styles.expandedArea, isDark ? styles.expandedDark : styles.expandedLight]}>
+                {m.sharePrivateDetails ? (
+                  <View>
+                    <Text style={styles.expandedLabel}>Detailed Spending History</Text>
+                    <View style={styles.historyGrid}>
+                      <View style={styles.historyBox}>
+                        <Text style={styles.historyTime}>This Week</Text>
+                        <Text style={styles.historyAmount}>₹{m.history?.week?.toLocaleString('en-IN') || '0'}</Text>
+                      </View>
+                      <View style={styles.historyBox}>
+                        <Text style={styles.historyTime}>This Month</Text>
+                        <Text style={styles.historyAmount}>₹{m.history?.month?.toLocaleString('en-IN') || '0'}</Text>
+                      </View>
+                      <View style={styles.historyBox}>
+                        <Text style={styles.historyTime}>This Year</Text>
+                        <Text style={styles.historyAmount}>₹{m.history?.year?.toLocaleString('en-IN') || '0'}</Text>
+                      </View>
+                    </View>
+                    {m.history?.recentTransactions?.length > 0 && (
+                      <View style={styles.miniTxList}>
+                        <Text style={styles.expandedLabel}>Recent Transactions</Text>
+                        {m.history.recentTransactions.map((tx: any, idx: number) => (
+                          <View key={idx} style={styles.miniTxItem}>
+                            <Text style={[styles.miniTxName, isDark ? styles.textLight : styles.textDark]}>{tx.merchant}</Text>
+                            <Text style={[styles.miniTxAmount, {color: '#ef4444'}]}>-₹{tx.amount}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.privateMessage}>
+                    <Ionicons name="lock-closed" size={24} color="#9ca3af" />
+                    <Text style={styles.privateText}>{m.name} has kept their detailed spending private.</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         ))}
       </View>
@@ -182,7 +288,6 @@ const styles = StyleSheet.create({
   secondaryBtnText: { fontSize: 18, fontWeight: '700' },
   borderLight: { borderColor: '#d1d5db' },
   borderDark: { borderColor: '#374151' },
-  backBtn: { position: 'absolute', top: 60, left: 24 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, height: 56, width: '100%' },
   inputWrapperLight: { borderColor: '#d1d5db', backgroundColor: '#ffffff' },
   inputWrapperDark: { borderColor: '#374151', backgroundColor: '#1f2937' },
@@ -211,5 +316,20 @@ const styles = StyleSheet.create({
   codeCard: { borderRadius: 16, padding: 24, alignItems: 'center', borderStyle: 'dashed', borderWidth: 2, borderColor: '#10b981' },
   codeLabel: { fontSize: 14, fontWeight: '600', marginBottom: 12 },
   codeValue: { fontSize: 40, fontWeight: '900', letterSpacing: 8, color: '#10b981', marginBottom: 12 },
-  codeSub: { fontSize: 13, color: '#9ca3af', textAlign: 'center' }
+  codeSub: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+  
+  expandedArea: { padding: 16, borderTopWidth: 1, backgroundColor: 'rgba(0,0,0,0.02)' },
+  expandedLight: { borderTopColor: '#e5e7eb' },
+  expandedDark: { borderTopColor: '#374151', backgroundColor: 'rgba(255,255,255,0.02)' },
+  expandedLabel: { fontSize: 13, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 12 },
+  historyGrid: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  historyBox: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#10b98115', alignItems: 'center' },
+  historyTime: { fontSize: 11, fontWeight: '600', color: '#10b981', textTransform: 'uppercase', marginBottom: 4 },
+  historyAmount: { fontSize: 15, fontWeight: '800', color: '#10b981' },
+  privateMessage: { alignItems: 'center', padding: 20 },
+  privateText: { fontSize: 13, color: '#9ca3af', marginTop: 8, textAlign: 'center' },
+  miniTxList: { marginTop: 8 },
+  miniTxItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#374151' },
+  miniTxName: { fontSize: 14, fontWeight: '600' },
+  miniTxAmount: { fontSize: 14, fontWeight: '700' }
 });

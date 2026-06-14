@@ -21,24 +21,36 @@ function BridgeInitializer({ children }: any) {
 
 function SecurityWrapper({ children }: any) {
   const db = useSQLiteContext();
-  const [unlocked, setUnlocked] = useState(true);
+  const [unlocked, setUnlocked] = useState(false); // Default to false until we check
+  const [isChecking, setIsChecking] = useState(true);
   const appState = useRef(AppState.currentState);
 
+  const checkAuth = async () => {
+    const userId = await getSession(db);
+    if (userId) {
+      setUnlocked(false);
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Unlock FamilyWallet',
+        fallbackLabel: 'Use Passcode'
+      });
+      if (result.success) {
+        setUnlocked(true);
+      }
+    } else {
+      // If no user is logged in, no need to lock the app (login screen will show)
+      setUnlocked(true);
+    }
+    setIsChecking(false);
+  };
+
   useEffect(() => {
+    // Check auth on initial mount
+    checkAuth();
+
     const subscription = AppState.addEventListener('change', async nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
         // App has come to the foreground! Check if user is logged in
-        const userId = await getSession(db);
-        if (userId) {
-          setUnlocked(false);
-          const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: 'Unlock FamilyWallet',
-            fallbackLabel: 'Use Passcode'
-          });
-          if (result.success) {
-            setUnlocked(true);
-          }
-        }
+        checkAuth();
       }
       appState.current = nextAppState;
     });
@@ -48,10 +60,12 @@ function SecurityWrapper({ children }: any) {
     };
   }, [db]);
 
-  if (!unlocked) {
+  if (isChecking || !unlocked) {
     return (
       <View style={{ flex: 1, backgroundColor: '#111827', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>FamilyWallet Locked</Text>
+        <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
+          {isChecking ? 'Loading...' : 'FamilyWallet Locked'}
+        </Text>
       </View>
     );
   }

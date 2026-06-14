@@ -25,7 +25,7 @@ class SmsReceiver : BroadcastReceiver() {
             val messageBody = sms.displayMessageBody ?: ""
 
             // Pass directly to the new Ultimate Auto Detection Engine
-            val parsed = ExpenseParser.parseMessage(sender, messageBody)
+            val parsed = ExpenseParser.parseMessage("SMS", sender, messageBody)
 
             if (parsed != null) {
                 Log.d("FamilyWalletNative", "Parsed SMS: ${parsed.amount} at ${parsed.merchant} (${parsed.confidence}%)")

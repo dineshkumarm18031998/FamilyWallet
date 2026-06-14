@@ -58,7 +58,7 @@ class FamilyWalletNotificationService : NotificationListenerService() {
         val fullText = "$title $text $bigText"
 
         // Pass directly to the new Ultimate Auto Detection Engine
-        val parsed = ExpenseParser.parseMessage(packageName, fullText)
+        val parsed = ExpenseParser.parseMessage(packageName, title, fullText)
 
         if (parsed != null) {
             Log.d("FamilyWalletNative", "Parsed Notification: ${parsed.amount} at ${parsed.merchant} (${parsed.confidence}%)")

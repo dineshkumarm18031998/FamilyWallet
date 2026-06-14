@@ -2,7 +2,6 @@
   "expo": {
     "name": "FamilyWallet",
     "slug": "familywallet",
-    "owner": "dk12309453",
     "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -22,7 +21,9 @@
         "RECEIVE_SMS",
         "READ_SMS",
         "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
+        "USE_FINGERPRINT",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#111827",
@@ -58,9 +59,11 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {},
       "eas": {
         "projectId": "3941d515-b62e-4443-a44c-54bb0e027a0d"
       }
-    }
+    },
+    "owner": "dk12309453"
   }
 }

@@ -2,11 +2,19 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
+import { useSQLiteContext } from 'expo-sqlite';
+import { syncWithCloud } from '../../utils/database';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
+  const db = useSQLiteContext();
+
+  useEffect(() => {
+    syncWithCloud(db).catch(console.warn);
+  }, [db]);
 
   const tintColor = isDark ? '#10b981' : '#059669'; // Emerald Green
   const bgColor = isDark ? '#1f2937' : '#ffffff';
@@ -60,6 +68,13 @@ export default function TabLayout() {
         options={{
           title: 'Family',
           tabBarIcon: ({ color }) => <Ionicons name="people" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color }) => <Ionicons name="calendar" size={24} color={color} />,
         }}
       />
       <Tabs.Screen

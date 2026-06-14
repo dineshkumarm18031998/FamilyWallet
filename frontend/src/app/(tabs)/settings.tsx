@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, Switch, Alert, ActivityIndicator, Appearance, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
-import { syncWithCloud, clearSession } from '../../utils/database';
+import { syncWithCloud, clearSession, getSession } from '../../utils/database';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { API_URL } from '../../utils/apiConfig';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Paths, File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -51,6 +52,19 @@ export default function Settings() {
   const updateSetting = async (key: string, value: boolean, setter: any) => {
     setter(value);
     await db.runAsync(`UPDATE tracking_settings SET ${key} = ? WHERE id = 1`, [value ? 1 : 0]);
+    
+    if (key === 'sharePrivateDetails') {
+      try {
+        const userId = await getSession(db) || "user_123_temp";
+        await fetch(`${API_URL}/settings/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, sharePrivateDetails: value })
+        });
+      } catch (e) {
+        console.warn('Failed to sync setting:', e);
+      }
+    }
   };
 
   const handleLogout = async () => {
@@ -234,43 +248,43 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 100 },
-  lightBg: { backgroundColor: '#f0f4f8' },
-  darkBg: { backgroundColor: '#070b14' }, // Deep futuristic space blue
-  header: { marginBottom: 24 },
-  title: { fontSize: 36, fontWeight: '900', letterSpacing: -1 },
+  scrollContent: { padding: 24, paddingBottom: 100 },
+  lightBg: { backgroundColor: '#FAFAFA' },
+  darkBg: { backgroundColor: '#0A0A0A' }, 
+  header: { marginBottom: 32 },
+  title: { fontSize: 36, fontWeight: '800', letterSpacing: -1 },
   textLight: { color: '#ffffff' },
-  textDark: { color: '#0f172a' },
-  cardLight: { backgroundColor: 'rgba(255,255,255,0.8)', borderWidth: 1, borderColor: '#ffffff', shadowColor: '#10b981', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 5 },
-  cardDark: { backgroundColor: 'rgba(30, 41, 59, 0.6)', borderWidth: 1, borderColor: 'rgba(51, 65, 85, 0.8)', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20 },
-  profileCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 28, marginBottom: 32 },
-  profileAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', marginRight: 16, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: {width: 0, height: 4} },
-  avatarText: { color: '#070b14', fontSize: 28, fontWeight: '800' },
+  textDark: { color: '#111827' },
+  cardLight: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 24, elevation: 5, borderColor: '#F3F4F6', borderWidth: 1 },
+  cardDark: { backgroundColor: '#141414', borderColor: '#262626', borderWidth: 1 },
+  profileCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 24, marginBottom: 36 },
+  profileAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  avatarText: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
   profileInfo: { flex: 1 },
-  profileName: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
-  profilePhone: { fontSize: 14, color: '#10b981', fontWeight: '600', letterSpacing: 1 },
-  editBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(16, 185, 129, 0.15)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.3)' },
+  profileName: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  profilePhone: { fontSize: 13, color: '#10b981', fontWeight: '600', letterSpacing: 0.5 },
+  editBtn: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 20 },
   editBtnText: { color: '#10b981', fontWeight: '700' },
-  sectionTitle: { fontSize: 13, fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 12, marginLeft: 8 },
-  sectionCard: { borderRadius: 28, overflow: 'hidden', marginBottom: 28, elevation: 4 },
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderBottomWidth: 1 },
-  borderLight: { borderBottomColor: 'rgba(0,0,0,0.05)' },
-  borderDark: { borderBottomColor: 'rgba(255,255,255,0.05)' },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: '#10b981', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, marginLeft: 8 },
+  sectionCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 32 },
+  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
+  borderLight: { borderBottomColor: '#F3F4F6' },
+  borderDark: { borderBottomColor: '#262626' },
   settingRowLeft: { flexDirection: 'row', alignItems: 'center' },
-  iconContainer: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(16, 185, 129, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  settingLabel: { fontSize: 16, fontWeight: '600' },
-  settingValueText: { fontSize: 16, color: '#10b981', fontWeight: '600' },
-  logoutBtn: { marginTop: 10, alignItems: 'center', padding: 18, borderRadius: 20, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
+  iconContainer: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(16, 185, 129, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  settingLabel: { fontSize: 15, fontWeight: '600' },
+  settingValueText: { fontSize: 15, color: '#10b981', fontWeight: '700' },
+  logoutBtn: { marginTop: 10, alignItems: 'center', padding: 18, borderRadius: 24, backgroundColor: 'rgba(239, 68, 68, 0.1)' },
   logoutText: { color: '#ef4444', fontSize: 16, fontWeight: '800', letterSpacing: 1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(7, 11, 20, 0.8)', justifyContent: 'center', padding: 24 },
-  modalContent: { borderRadius: 32, padding: 32, elevation: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 24, color: '#10b981' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  modalContent: { borderRadius: 32, padding: 32 },
+  modalTitle: { fontSize: 24, fontWeight: '800', marginBottom: 24, color: '#10b981' },
   inputWrapper: { marginBottom: 20 },
-  inputLabel: { fontSize: 14, color: '#94a3b8', marginBottom: 8, fontWeight: '700', letterSpacing: 0.5 },
-  input: { borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.3)', borderRadius: 16, padding: 16, fontSize: 16, backgroundColor: 'rgba(0,0,0,0.2)' },
+  inputLabel: { fontSize: 14, color: '#9ca3af', marginBottom: 8, fontWeight: '600' },
+  input: { borderWidth: 1, borderColor: '#374151', borderRadius: 16, padding: 16, fontSize: 16 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 24, gap: 16 },
   modalBtnCancel: { padding: 16 },
-  cancelText: { color: '#94a3b8', fontWeight: '700', fontSize: 16 },
-  modalBtnSave: { backgroundColor: '#10b981', paddingHorizontal: 24, paddingVertical: 16, borderRadius: 16, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: {width: 0, height: 4} },
-  saveText: { color: '#070b14', fontWeight: '900', fontSize: 16, letterSpacing: 1 }
+  cancelText: { color: '#9ca3af', fontWeight: '700', fontSize: 16 },
+  modalBtnSave: { backgroundColor: '#10b981', paddingHorizontal: 24, paddingVertical: 16, borderRadius: 16 },
+  saveText: { color: '#ffffff', fontWeight: '800', fontSize: 16 }
 });

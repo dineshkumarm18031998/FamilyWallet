@@ -164,11 +164,21 @@ app.post('/api/sync/push', async (req, res) => {
   try {
     const results = [];
     
-    // In a real app, this should be an upsert and wrapped in a transaction
+    // Upsert expenses to prevent duplicates
     for (const exp of expenses) {
-      // Mocking family resolution for now
-      const saved = await prisma.expense.create({
-        data: {
+      const saved = await prisma.expense.upsert({
+        where: { id: exp.id },
+        update: {
+          amount: exp.amount,
+          merchant: exp.merchant,
+          category: exp.category,
+          visibility: exp.visibility,
+          date: new Date(exp.date),
+          notes: exp.notes,
+          source: exp.source || 'Manual'
+        },
+        create: {
+          id: exp.id,
           amount: exp.amount,
           merchant: exp.merchant,
           category: exp.category,
@@ -186,6 +196,27 @@ app.post('/api/sync/push', async (req, res) => {
   } catch (error) {
     console.error('Push Sync Error:', error);
     res.status(500).json({ error: 'Failed to push data' });
+  }
+});
+
+// ----------------------------------------------------
+// SYNC API - DELETE (Mobile -> Cloud)
+// ----------------------------------------------------
+app.post('/api/sync/delete', async (req, res) => {
+  const { userId, expenseId } = req.body;
+  if (!userId || !expenseId) {
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+
+  try {
+    const existing = await prisma.expense.findUnique({ where: { id: expenseId } });
+    if (existing) {
+      await prisma.expense.delete({ where: { id: expenseId } });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete Sync Error:', error);
+    res.status(500).json({ error: 'Failed to delete data' });
   }
 });
 
@@ -209,6 +240,26 @@ app.get('/api/sync/pull/:userId', async (req, res) => {
   } catch (error) {
     console.error('Pull Sync Error:', error);
     res.status(500).json({ error: 'Failed to pull data' });
+  }
+});
+
+// ----------------------------------------------------
+// SETTINGS API
+// ----------------------------------------------------
+app.post('/api/settings/update', async (req, res) => {
+  const { userId, sharePrivateDetails } = req.body;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+  try {
+    const settings = await prisma.settings.upsert({
+      where: { userId },
+      update: { sharePrivateDetails },
+      create: { userId, sharePrivateDetails }
+    });
+    res.json({ success: true, settings });
+  } catch (error) {
+    console.error('Settings Update Error:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
   }
 });
 

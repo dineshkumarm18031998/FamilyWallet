@@ -15,9 +15,21 @@ object ExpenseParser {
     // Ignore Engine Rules
     private val ignoreKeywords = listOf(
         "OTP", "PASSWORD", "PIN", "SALARY", "CREDITED", "CREDIT CARD", "LOAN",
-        "EMI", "INSURANCE", "MUTUAL FUND", "STOCK", "PROMOTION", "CASHBACK", "REWARD"
+        "EMI", "INSURANCE", "MUTUAL FUND", "STOCK", "PROMOTION", "CASHBACK", "REWARD",
+        "FAILED", "FAILURE", "UNSUCCESSFUL", "DECLINED", "CANCELLED", "CANCELED", 
+        "PENDING", "PROCESSING", "AWAITING CONFIRMATION", "VERIFICATION PENDING", 
+        "IN PROGRESS", "BEING PROCESSED", "UNDER REVIEW", "PAYMENT REVERSED", 
+        "TRANSACTION REVERSED", "RECHARGE FAILED", "ORDER FAILED", "SUBSCRIPTION FAILED", 
+        "UNABLE TO PROCESS", "TECHNICAL ERROR", "COULD NOT BE PROCESSED"
     )
 
+    // Success Engine Rules
+    private val successKeywords = listOf(
+        "SUCCESSFUL", "COMPLETED", "CONFIRMED", "PAID", "PAYMENT RECEIVED", 
+        "ORDER CONFIRMED", "ORDER DELIVERED", "RECHARGE SUCCESSFUL", 
+        "SUBSCRIPTION RENEWED", "PLAN ACTIVATED", "TRANSACTION SUCCESSFUL", 
+        "APPROVED", "SETTLED", "PROCESSED SUCCESSFULLY"
+    )
     // Categories
     const val CAT_FOOD = "Food"
     const val CAT_GROCERY = "Groceries"
@@ -37,15 +49,18 @@ object ExpenseParser {
     private val rechargeWords = listOf("RECHARGE", "TOPUP", "PLAN", "DATA PACK", "VALIDITY")
     private val dthWords = listOf("SUBSCRIPTION", "CHANNEL PACK", "DTH", "TV PACK")
 
-    // UPI Transfer Ignored Names
-    private val personalNames = listOf("RAVI", "KUMAR", "FRIEND", "SELF")
-
-    fun parseMessage(senderOrPackage: String, text: String): ParsedExpense? {
+    fun parseMessage(packageName: String, title: String, text: String): ParsedExpense? {
         val upperText = text.uppercase()
-        val upperSender = senderOrPackage.uppercase()
+        val upperTitle = title.uppercase()
+        val upperPackage = packageName.uppercase()
 
-        // 1. IGNORE ENGINE
-        if (ignoreKeywords.any { upperText.contains(it) } || personalNames.any { upperText.contains(it) }) {
+        // 1. IGNORE ENGINE (Failure, Pending, General Ignores)
+        if (ignoreKeywords.any { upperText.contains(it) }) {
+            return null
+        }
+
+        // 1.5. SUCCESS ENGINE (Only process explicitly successful transactions)
+        if (!successKeywords.any { upperText.contains(it) }) {
             return null
         }
 
@@ -68,12 +83,13 @@ object ExpenseParser {
             return false
         }
 
-        // Layer 1 & 2: Sender/Package Match
-        if (checkMerchants(upperSender)) {
+        // Layer 1 & 2: Title Match (Bank Name or Direct Merchant Name)
+        if (checkMerchants(upperTitle)) {
             confidence = 100
         } 
         // UPI Detection Engine ("Paid Rs X to Y")
-        else if (upperSender.contains("GOOGLE") || upperSender.contains("PHONEPE") || upperSender.contains("PAYTM")) {
+        // Check if the package is actually a UPI app, NOT Google Messages
+        else if (upperPackage.contains("PAISA") || upperPackage.contains("PHONEPE") || upperPackage.contains("PAYTM")) {
             val paidToRegex = Regex("(?i)paid (?:.*? )?to (.*)")
             val paidMatch = paidToRegex.find(text)
             if (paidMatch != null) {

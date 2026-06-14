@@ -119,37 +119,137 @@ export const getWalletTotals = async (db: SQLite.SQLiteDatabase) => {
   const privateResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Private'");
   
   return {
-    sharedTotal: sharedResult?.total || 0,
-    privateTotal: privateResult?.total || 0
+    sharedTotal: Math.round((sharedResult?.total || 0) * 100) / 100,
+    privateTotal: Math.round((privateResult?.total || 0) * 100) / 100
   };
 };
 
 export const getCategoryTotals = async (db: SQLite.SQLiteDatabase) => {
-  const result = await db.getAllAsync('SELECT category, SUM(amount) as total FROM expenses GROUP BY category ORDER BY total DESC');
-  return result;
+  const result: any[] = await db.getAllAsync('SELECT category, SUM(amount) as total FROM expenses GROUP BY category ORDER BY total DESC');
+  return result.map(r => ({
+    ...r,
+    total: Math.round((r.total || 0) * 100) / 100
+  }));
 };
 
 export const syncWithCloud = async (db: SQLite.SQLiteDatabase) => {
   try {
-    const pendingExpenses = await db.getAllAsync("SELECT * FROM expenses WHERE syncStatus = 'Pending'");
-    if (pendingExpenses.length === 0) return { success: true, count: 0, message: 'Already up to date' };
-
     const userId = await getSession(db) || "user_123_temp";
-
-    const response = await fetch(`${API_URL}/sync/push`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, expenses: pendingExpenses })
-    });
-
-    const result = await response.json();
-    if (result.success) {
-      await db.runAsync("UPDATE expenses SET syncStatus = 'Synced' WHERE syncStatus = 'Pending'");
-      return { success: true, count: result.syncedCount, message: `Successfully synced ${result.syncedCount} expenses` };
+    
+    // 1. PUSH PENDING
+    const pendingExpenses = await db.getAllAsync("SELECT * FROM expenses WHERE syncStatus = 'Pending'");
+    if (pendingExpenses.length > 0) {
+      const response = await fetch(`${API_URL}/sync/push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, expenses: pendingExpenses })
+      });
+      const result = await response.json();
+      if (result.success) {
+        await db.runAsync("UPDATE expenses SET syncStatus = 'Synced' WHERE syncStatus = 'Pending'");
+      }
     }
-    return { success: false, message: 'Server returned an error' };
+
+    // 2. PULL LATEST FROM CLOUD
+    const pullRes = await fetch(`${API_URL}/sync/pull/${userId}`);
+    const pullData = await pullRes.json();
+    if (pullData.success && pullData.data) {
+      for (const exp of pullData.data) {
+        await db.runAsync(
+          'INSERT OR IGNORE INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [exp.id, exp.amount, exp.merchant, exp.category, exp.visibility, exp.date, exp.notes, exp.source, 'Synced']
+        );
+      }
+    }
+
+    return { success: true, message: 'Sync complete' };
   } catch (error) {
     console.error('Sync Error:', error);
     return { success: false, message: 'Network error. Make sure backend is running.' };
   }
+};
+
+export const deleteExpense = async (db: SQLite.SQLiteDatabase, id: string) => {
+  await db.runAsync('DELETE FROM expenses WHERE id = ?', [id]);
+  
+  try {
+    const userId = await getSession(db) || "user_123_temp";
+    await fetch(`${API_URL}/sync/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, expenseId: id })
+    });
+  } catch (e) {
+    console.warn('Failed to delete on cloud:', e);
+  }
+
+  syncWithCloud(db).catch(console.warn);
+};
+
+export const updateExpense = async (db: SQLite.SQLiteDatabase, id: string, amount: number, merchant: string, category: string) => {
+  await db.runAsync(
+    "UPDATE expenses SET amount = ?, merchant = ?, category = ?, syncStatus = 'Pending' WHERE id = ?",
+    [amount, merchant, category, id]
+  );
+  syncWithCloud(db).catch(console.warn);
+};
+
+export const getWalletTotalsForMonth = async (db: SQLite.SQLiteDatabase, year: number, month: number) => {
+  const start = new Date(year, month - 1, 1, 0, 0, 0).toISOString();
+  const end = new Date(year, month, 0, 23, 59, 59).toISOString();
+
+  const sharedResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Shared' AND date >= ? AND date <= ?", [start, end]);
+  const privateResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Private' AND date >= ? AND date <= ?", [start, end]);
+  
+  return {
+    sharedTotal: Math.round((sharedResult?.total || 0) * 100) / 100,
+    privateTotal: Math.round((privateResult?.total || 0) * 100) / 100
+  };
+};
+
+export const getRecentExpensesForMonth = async (db: SQLite.SQLiteDatabase, year: number, month: number, limit: number = 5) => {
+  const start = new Date(year, month - 1, 1, 0, 0, 0).toISOString();
+  const end = new Date(year, month, 0, 23, 59, 59).toISOString();
+  const allRows = await db.getAllAsync('SELECT * FROM expenses WHERE date >= ? AND date <= ? ORDER BY date DESC LIMIT ?', [start, end, limit]);
+  return allRows;
+};
+
+export const getCategoryTotalsForPeriod = async (db: SQLite.SQLiteDatabase, startDate: string, endDate: string) => {
+  const result: any[] = await db.getAllAsync(
+    'SELECT category, SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ? GROUP BY category ORDER BY total DESC',
+    [startDate, endDate]
+  );
+  return result.map(r => ({
+    ...r,
+    total: Math.round((r.total || 0) * 100) / 100
+  }));
+};
+
+export const getTrendData = async (db: SQLite.SQLiteDatabase, periodType: 'week' | 'month' | 'year', currentYear: number, currentMonth: number) => {
+  // Returns aggregated sum arrays for the chart based on the selected period.
+  // We'll process this raw data in JS for simplicity to handle different month lengths.
+  
+  let query = '';
+  let params: any[] = [];
+
+  if (periodType === 'week') {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    const startStr = d.toISOString();
+    query = "SELECT date, SUM(amount) as total FROM expenses WHERE date >= ? GROUP BY strftime('%Y-%m-%d', date) ORDER BY date ASC";
+    params = [startStr];
+  } else if (periodType === 'month') {
+    const start = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0).toISOString();
+    const end = new Date(currentYear, currentMonth, 0, 23, 59, 59).toISOString();
+    query = "SELECT date, SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ? GROUP BY strftime('%Y-%m-%d', date) ORDER BY date ASC";
+    params = [start, end];
+  } else if (periodType === 'year') {
+    const start = new Date(currentYear, 0, 1, 0, 0, 0).toISOString();
+    const end = new Date(currentYear, 11, 31, 23, 59, 59).toISOString();
+    query = "SELECT date, SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ? GROUP BY strftime('%Y-%m', date) ORDER BY date ASC";
+    params = [start, end];
+  }
+
+  const rawData: any[] = await db.getAllAsync(query, params);
+  return rawData;
 };
