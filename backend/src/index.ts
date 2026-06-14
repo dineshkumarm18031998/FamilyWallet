@@ -100,17 +100,14 @@ app.post('/api/family/join', async (req, res) => {
     const family = await prisma.family.findUnique({ where: { inviteCode } });
     if (!family) return res.status(404).json({ error: 'Invalid invite code' });
 
-    // Ensure the joining user exists in the cloud DB
-    await prisma.user.upsert({
-      where: { id: userId },
-      update: {},
-      create: { 
-        id: userId, 
-        phone: userId, // Dummy phone
-        password: '',
-        name: 'Local User'
-      }
+    // Check if user is already a member
+    const existingMember = await prisma.familyMember.findFirst({
+      where: { userId, familyId: family.id }
     });
+    
+    if (existingMember) {
+      return res.status(400).json({ error: 'You are already a member of this family' });
+    }
 
     const member = await prisma.familyMember.create({
       data: { userId, familyId: family.id, role: 'Member' }
