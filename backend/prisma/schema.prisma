@@ -54,7 +54,7 @@ model Expense {
   notes         String?
   source        String   @default("Manual") // "Manual", "SMS", "OCR"
   isDeleted     Boolean  @default(false)
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime @default(now()) @updatedAt
 
   userId   String
   familyId String?
