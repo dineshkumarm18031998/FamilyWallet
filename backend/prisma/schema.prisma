@@ -43,14 +43,18 @@ model FamilyMember {
 }
 
 model Expense {
-  id         String   @id @default(uuid())
-  amount     Float
-  merchant   String
-  category   String
-  visibility String // "Shared" or "Private"
-  date       DateTime @default(now())
-  notes      String?
-  source     String   @default("Manual") // "Manual", "SMS", "OCR"
+  id            String   @id @default(uuid())
+  amount        Float
+  merchant      String
+  category      String
+  subcategory   String?
+  paymentMethod String?
+  visibility    String // "Shared" or "Private"
+  date          DateTime @default(now())
+  notes         String?
+  source        String   @default("Manual") // "Manual", "SMS", "OCR"
+  isDeleted     Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
 
   userId   String
   familyId String?

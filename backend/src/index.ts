@@ -62,20 +62,46 @@ app.post('/api/auth/login', async (req, res) => {
 // ----------------------------------------------------
 app.post('/api/family/create', async (req, res) => {
   const { userId, name } = req.body;
+  if (!userId || !name) return res.status(400).json({ error: 'Missing userId or name' });
+
   try {
-    // The frontend guarantees the user exists via /api/auth/register or login
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const family = await prisma.family.create({
-      data: {
-        name,
-        inviteCode,
-        members: {
-          create: { userId, role: 'Owner' }
+    // Retry on invite-code collision (P2002 unique constraint violation)
+    let family;
+    let attempts = 0;
+    while (attempts < 5) {
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      try {
+        family = await prisma.family.create({
+          data: {
+            name,
+            inviteCode,
+            members: {
+              create: { userId, role: 'Owner' }
+            }
+          },
+          include: { members: true }
+        });
+        break;
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          attempts++;
+          continue; // invite code collision, retry with a new code
         }
-      },
-      include: { members: true }
+        throw err;
+      }
+    }
+
+    if (!family) {
+      return res.status(500).json({ error: 'Failed to generate a unique invite code, please try again' });
+    }
+
+    // Backfill familyId on this user's existing expenses so previously
+    // synced Shared expenses become visible to family members immediately.
+    await prisma.expense.updateMany({
+      where: { userId },
+      data: { familyId: family.id }
     });
-    
+
     res.json({ success: true, family });
   } catch (err: any) {
     console.error("Family Create Error:", err);
@@ -85,8 +111,10 @@ app.post('/api/family/create', async (req, res) => {
 
 app.post('/api/family/join', async (req, res) => {
   const { userId, inviteCode } = req.body;
+  if (!userId || !inviteCode) return res.status(400).json({ error: 'Missing userId or inviteCode' });
+
   try {
-    const family = await prisma.family.findUnique({ where: { inviteCode } });
+    const family = await prisma.family.findUnique({ where: { inviteCode: inviteCode.toUpperCase() } });
     if (!family) return res.status(404).json({ error: 'Invalid invite code' });
 
     // Check if user is already a member
@@ -101,6 +129,14 @@ app.post('/api/family/join', async (req, res) => {
     const member = await prisma.familyMember.create({
       data: { userId, familyId: family.id, role: 'Member' }
     });
+
+    // Backfill familyId on this user's existing expenses so previously
+    // synced Shared expenses become visible to family members immediately.
+    await prisma.expense.updateMany({
+      where: { userId },
+      data: { familyId: family.id }
+    });
+
     res.json({ success: true, family });
   } catch (err: any) {
     console.error("Family Join Error:", err);
@@ -116,7 +152,7 @@ app.get('/api/family/:userId', async (req, res) => {
       include: {
         family: {
           include: {
-            members: { include: { user: true } },
+            members: { include: { user: { include: { settings: true } } } },
             expenses: { where: { visibility: 'Shared' } }
           }
         }
@@ -130,17 +166,54 @@ app.get('/api/family/:userId', async (req, res) => {
     // Calculate totals
     const family = member.family;
     const sharedTotal = family.expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    
-    const formattedMembers = family.members.map(m => {
+
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+    const formattedMembers = await Promise.all(family.members.map(async (m) => {
       const spent = family.expenses.filter(e => e.userId === m.userId).reduce((s, e) => s + e.amount, 0);
+      const displayName = m.user?.name || m.user?.phone || 'Member';
+      const sharePrivateDetails = m.user?.settings?.sharePrivateDetails === true;
+
+      let history;
+      if (sharePrivateDetails) {
+        // Member has opted in to full transparency - pull ALL of their
+        // expenses (private + shared), not just the family-shared pool.
+        const allMemberExpenses = await prisma.expense.findMany({
+          where: { userId: m.userId },
+          orderBy: { date: 'desc' }
+        });
+
+        const sumSince = (since: Date) =>
+          allMemberExpenses.filter(e => e.date >= since).reduce((s, e) => s + e.amount, 0);
+
+        history = {
+          week: sumSince(startOfWeek),
+          month: sumSince(startOfMonth),
+          year: sumSince(startOfYear),
+          recentTransactions: allMemberExpenses.slice(0, 5).map(e => ({
+            merchant: e.merchant,
+            amount: e.amount,
+            category: e.category,
+            date: e.date
+          }))
+        };
+      }
+
       return {
         id: m.id,
         userId: m.userId,
-        name: m.user.phone, // fallback to phone if no name
+        name: displayName,
         role: m.role,
-        spent
+        spent,
+        sharePrivateDetails,
+        history
       };
-    });
+    }));
 
     res.json({
       hasFamily: true,
@@ -153,6 +226,7 @@ app.get('/api/family/:userId', async (req, res) => {
       }
     });
   } catch (err) {
+    console.error("Family Fetch Error:", err);
     res.status(500).json({ error: 'Failed to fetch family' });
   }
 });
@@ -180,35 +254,56 @@ app.post('/api/sync/push', async (req, res) => {
       }
     });
 
+    // Look up this user's family (if any) so we can tag pushed expenses
+    // with familyId - required for /api/sync/pull to find Shared expenses
+    // belonging to family members.
+    const membership = await prisma.familyMember.findFirst({
+      where: { userId },
+      select: { familyId: true }
+    });
+    const familyId = membership?.familyId || null;
+
     const results = [];
-    
-    // Upsert expenses to prevent duplicates
-    for (const exp of expenses) {
-      const saved = await prisma.expense.upsert({
-        where: { id: exp.id },
-        update: {
-          amount: exp.amount,
-          merchant: exp.merchant,
-          category: exp.category,
-          visibility: exp.visibility,
-          date: new Date(exp.date),
-          notes: exp.notes,
-          source: exp.source || 'Manual'
-        },
-        create: {
-          id: exp.id,
-          amount: exp.amount,
-          merchant: exp.merchant,
-          category: exp.category,
-          visibility: exp.visibility,
-          date: new Date(exp.date),
-          notes: exp.notes,
-          source: exp.source || 'Manual',
-          userId: userId,
-        }
-      });
-      results.push(saved);
-    }
+        // Upsert expenses to prevent duplicates
+      for (const exp of expenses) {
+        const parsedDate = exp.date ? new Date(exp.date) : new Date();
+        const parsedUpdated = exp.updatedAt ? new Date(exp.updatedAt) : new Date();
+        
+        const saved = await prisma.expense.upsert({
+          where: { id: exp.id },
+          update: {
+            amount: exp.amount,
+            merchant: exp.merchant,
+            category: exp.category,
+            subcategory: exp.subcategory || null,
+            paymentMethod: exp.paymentMethod || null,
+            visibility: exp.visibility,
+            date: parsedDate,
+            notes: exp.notes,
+            source: exp.source || 'Manual',
+            isDeleted: exp.isDeleted === 1 || exp.isDeleted === true,
+            updatedAt: parsedUpdated,
+            familyId: familyId
+          },
+          create: {
+            id: exp.id,
+            amount: exp.amount,
+            merchant: exp.merchant,
+            category: exp.category,
+            subcategory: exp.subcategory || null,
+            paymentMethod: exp.paymentMethod || null,
+            visibility: exp.visibility,
+            date: parsedDate,
+            notes: exp.notes,
+            source: exp.source || 'Manual',
+            isDeleted: exp.isDeleted === 1 || exp.isDeleted === true,
+            updatedAt: parsedUpdated,
+            userId: userId,
+            familyId: familyId
+          }
+        });
+        results.push(saved);
+      }
     
     res.json({ success: true, syncedCount: results.length });
   } catch (error) {
