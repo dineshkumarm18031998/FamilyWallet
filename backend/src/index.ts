@@ -376,7 +376,25 @@ app.get('/api/sync/pull/:userId', async (req, res) => {
       orderBy: { date: 'desc' }
     });
 
-    res.json({ success: true, data: newExpenses });
+    // Apply Privacy Scrubber
+    const scrubbedExpenses = newExpenses.map(exp => {
+      // Don't scrub my own expenses
+      if (exp.userId === userId) return exp;
+
+      // Find the owner's settings
+      const ownerMember = sharingMembers.find(m => m.userId === exp.userId);
+      const ownerSettings = ownerMember?.user?.settings;
+
+      if (ownerSettings) {
+        if (!ownerSettings.shareMerchantName) exp.merchant = 'Hidden';
+        if (!ownerSettings.shareNotes) exp.notes = null;
+        if (!ownerSettings.sharePaymentMethod) exp.paymentMethod = null;
+      }
+
+      return exp;
+    });
+
+    res.json({ success: true, data: scrubbedExpenses });
   } catch (error) {
     console.error('Pull Sync Error:', error);
     res.status(500).json({ error: 'Failed to pull data' });
@@ -387,14 +405,14 @@ app.get('/api/sync/pull/:userId', async (req, res) => {
 // SETTINGS API
 // ----------------------------------------------------
 app.post('/api/settings/update', async (req, res) => {
-  const { userId, sharePrivateDetails } = req.body;
+  const { userId, ...settingsPayload } = req.body;
   if (!userId) return res.status(400).json({ error: 'Missing userId' });
 
   try {
     const settings = await prisma.settings.upsert({
       where: { userId },
-      update: { sharePrivateDetails },
-      create: { userId, sharePrivateDetails }
+      update: { ...settingsPayload },
+      create: { userId, ...settingsPayload }
     });
     res.json({ success: true, settings });
   } catch (error) {

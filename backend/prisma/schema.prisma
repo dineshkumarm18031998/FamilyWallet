@@ -66,17 +66,37 @@ model Expense {
 model Settings {
   id                  String  @id @default(uuid())
   userId              String  @unique
-  autoShareGroceries  Boolean @default(true)
-  autoShareFood       Boolean @default(true)
-  autoShareRecharge   Boolean @default(true)
-  trackGrocery        Boolean @default(true)
+  
+  // Auto Detection
+  trackSMS            Boolean @default(true)
+  trackNotifications  Boolean @default(true)
+  trackOCR            Boolean @default(true)
+
+  // Tracking Categories
   trackFood           Boolean @default(true)
+  trackGroceries      Boolean @default(true)
+  trackFuel           Boolean @default(true)
+  trackUtilities      Boolean @default(true)
+  trackMedical        Boolean @default(true)
   trackRecharge       Boolean @default(true)
   trackDTH            Boolean @default(true)
-  trackUtilities      Boolean @default(true)
+  trackEducation      Boolean @default(true)
+
+  // Privacy & Sharing
   sharePrivateDetails Boolean @default(false)
-  darkMode            Boolean @default(false)
-  language            String  @default("English")
+  shareMerchantName   Boolean @default(true)
+  shareNotes          Boolean @default(true)
+  shareReceipts       Boolean @default(true)
+  sharePaymentMethod  Boolean @default(true)
+  defaultVisibility   String  @default("Private") // "Private" or "Shared"
+  autoShare           Boolean @default(false)
+
+  // Sync & Backup
+  autoSync            Boolean @default(true)
+  cloudBackup         Boolean @default(false)
+
+  // Appearance
+  appearance          String  @default("System") // "Light", "Dark", "System"
 
   user User @relation(fields: [userId], references: [id])
 }
