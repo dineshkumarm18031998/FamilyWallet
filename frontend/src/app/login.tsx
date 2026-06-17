@@ -41,8 +41,8 @@ export default function LoginScreen() {
             if (pullData.success && pullData.data) {
               for (const exp of pullData.data) {
                 await db.runAsync(
-                  'INSERT OR REPLACE INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                  [exp.id, exp.amount, exp.merchant, exp.category, exp.visibility, exp.date, exp.notes, exp.source, 'Synced']
+                  'INSERT OR REPLACE INTO expenses (id, amount, merchant, category, visibility, date, notes, source, syncStatus, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  [exp.id, exp.amount, exp.merchant, exp.category, exp.visibility, exp.date, exp.notes, exp.source, 'Synced', exp.userId]
                 );
               }
             }

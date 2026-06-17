@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet, ScrollView, useColorScheme, Dimensions, TouchableOpacity } from 'react-native';
-import { StackedBarChart } from 'react-native-chart-kit';
+import { StackedBarChart, PieChart } from 'react-native-chart-kit';
 import { useFocusEffect } from 'expo-router';
 import { useState, useCallback, useMemo } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getHistoricalTrends } from '../../utils/database';
+import { Ionicons } from '@expo/vector-icons';
+import { getHistoricalTrends, getCategoryTotals } from '../../utils/database';
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -14,15 +15,56 @@ export default function Reports() {
   
   const [period, setPeriod] = useState<'Weekly' | 'Monthly' | 'Yearly'>('Monthly');
   const [trends, setTrends] = useState<any[]>([]);
+  const [mode, setMode] = useState<'My Wallet' | 'Family Wallet'>('My Wallet');
+  const [hasFamily, setHasFamily] = useState(false);
+  const [familyData, setFamilyData] = useState<any>(null);
+
+  const [pieData, setPieData] = useState<any[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       const loadData = async () => {
-        const data = await getHistoricalTrends(db, period);
+        const data = await getHistoricalTrends(db, period, mode);
         setTrends(data);
+        
+        const catData = await getCategoryTotals(db, mode);
+        // Process for Pie Chart
+        const colorMap: Record<string, string> = { 
+          Food: '#ef4444', Groceries: '#f59e0b', Recharge: '#3b82f6', DTH: '#8b5cf6', 
+          Shopping: '#ec4899', Utilities: '#eab308', Rent: '#14b8a6', Fuel: '#f97316', 
+          Medicine: '#10b981', Education: '#6366f1', Travel: '#0ea5e9', Other: '#9ca3af' 
+        };
+        const pData = catData.slice(0, 5).map((c: any, i: number) => ({
+          name: c.category,
+          amount: c.total,
+          color: colorMap[c.category] || '#9ca3af',
+          legendFontColor: isDark ? '#ffffff' : '#111827',
+          legendFontSize: 13
+        }));
+        setPieData(pData);
+
+        // Fetch family connection status and details
+        try {
+          const { getSession } = await import('../../utils/database');
+          const userId = await getSession(db);
+          if (userId) {
+            const { API_URL } = await import('../../utils/apiConfig');
+            const res = await fetch(`${API_URL}/family/${userId}`);
+            const data = await res.json();
+            if (data.hasFamily) {
+              setHasFamily(true);
+              setFamilyData(data.data);
+            } else {
+              setHasFamily(false);
+              setFamilyData(null);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to fetch family status in reports", e);
+        }
       };
       loadData();
-    }, [db, period])
+    }, [db, period, mode, isDark])
   );
 
   // Process data for Stacked Bar Chart
@@ -115,6 +157,19 @@ export default function Reports() {
         <Text style={[styles.headerTitle, isDark ? styles.textLight : styles.textDark]}>Analytics</Text>
       </View>
 
+      <View style={[styles.toggleContainer, isDark ? styles.cardDark : styles.cardLight]}>
+        <TouchableOpacity 
+          style={[styles.toggleBtn, mode === 'My Wallet' && styles.toggleActive]} 
+          onPress={() => setMode('My Wallet')}>
+          <Text style={[styles.toggleText, mode === 'My Wallet' ? styles.textLight : (isDark ? styles.textLightMuted : styles.textDarkMuted)]}>Personal Analytics</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.toggleBtn, mode === 'Family Wallet' && styles.toggleActive]} 
+          onPress={() => setMode('Family Wallet')}>
+          <Text style={[styles.toggleText, mode === 'Family Wallet' ? styles.textLight : (isDark ? styles.textLightMuted : styles.textDarkMuted)]}>Family Analytics</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Tabs */}
       <View style={[styles.tabContainer, isDark ? styles.tabBgDark : styles.tabBgLight]}>
         {(['Weekly', 'Monthly', 'Yearly'] as const).map(p => (
@@ -134,51 +189,122 @@ export default function Reports() {
         ))}
       </View>
 
-      {/* AI Insight Card */}
-      <View style={[styles.insightCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <View style={styles.insightHeader}>
-          <Text style={styles.insightIcon}>✨</Text>
-          <Text style={[styles.insightTitle, isDark ? styles.textLight : styles.textDark]}>AI Insight</Text>
+      {mode === 'Family Wallet' && !hasFamily ? (
+        <View style={[styles.insightCard, isDark ? styles.cardDark : styles.cardLight, { marginTop: 20, alignItems: 'center', padding: 32 }]}>
+          <Ionicons name="people-outline" size={48} color="#10b981" style={{ marginBottom: 12 }} />
+          <Text style={[{ fontSize: 18, fontWeight: '700', marginBottom: 8 }, isDark ? styles.textLight : styles.textDark]}>
+            No Family Connected
+          </Text>
+          <Text style={{ textAlign: 'center', color: '#9ca3af', lineHeight: 20, fontSize: 14 }}>
+            Connect with your family members to see spending comparisons, combined trends, and collective insights here.
+          </Text>
         </View>
-        <Text style={[styles.insightText, isDark ? styles.textMutedDark : styles.textMutedLight]}>
-          {chartData.insight}
-        </Text>
-        {chartData.averageStr ? (
-          <View style={styles.averageBadge}>
-            <Text style={styles.averageText}>{chartData.averageStr}</Text>
-          </View>
-        ) : null}
-      </View>
+      ) : (
+        <>
+          {/* Family Member Contributions comparison progress list */}
+          {mode === 'Family Wallet' && hasFamily && familyData && (
+            <View style={[styles.chartWrapper, { marginBottom: 32 }]}>
+              <Text style={[styles.chartTitle, isDark ? styles.textLight : styles.textDark]}>
+                Member Contributions
+              </Text>
+              <View style={[styles.chartCard, isDark ? styles.cardDark : styles.cardLight, { padding: 20 }]}>
+                <View style={{ gap: 16 }}>
+                  {familyData.members.map((member: any) => {
+                    const totalSpent = familyData.sharedTotal || 1;
+                    const percentage = Math.round((member.spent / totalSpent) * 100) || 0;
+                    return (
+                      <View key={member.id}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <Text style={[{ fontWeight: '600', fontSize: 14 }, isDark ? styles.textLight : styles.textDark]}>{member.name}</Text>
+                          <Text style={[{ fontWeight: '800', fontSize: 14 }, isDark ? styles.textLight : styles.textDark]}>
+                            ₹{member.spent?.toLocaleString('en-IN')} ({percentage}%)
+                          </Text>
+                        </View>
+                        <View style={{ height: 8, width: '100%', backgroundColor: isDark ? '#262626' : '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
+                          <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: '#10b981', borderRadius: 4 }} />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          )}
 
-      {/* Stacked Bar Chart */}
-      <View style={styles.chartWrapper}>
-        <Text style={[styles.chartTitle, isDark ? styles.textLight : styles.textDark]}>
-          {period} Trends & Categories
-        </Text>
-        
-        {chartData.labels.length > 0 ? (
-          <View style={[styles.chartCard, isDark ? styles.cardDark : styles.cardLight]}>
-            <StackedBarChart
-              style={styles.chart}
-              data={{
-                labels: chartData.labels,
-                legend: chartData.legend,
-                data: chartData.data,
-                barColors: chartData.barColors
-              }}
-              width={screenWidth - 48}
-              height={260}
-              chartConfig={chartConfig}
-              hideLegend={false}
-              decimalPlaces={0}
-            />
+          {/* AI Insight Card */}
+          <View style={[styles.insightCard, isDark ? styles.cardDark : styles.cardLight]}>
+            <View style={styles.insightHeader}>
+              <Text style={styles.insightIcon}>✨</Text>
+              <Text style={[styles.insightTitle, isDark ? styles.textLight : styles.textDark]}>AI Insight</Text>
+            </View>
+            <Text style={[styles.insightText, isDark ? styles.textMutedDark : styles.textMutedLight]}>
+              {chartData.insight}
+            </Text>
+            {chartData.averageStr ? (
+              <View style={styles.averageBadge}>
+                <Text style={styles.averageText}>{chartData.averageStr}</Text>
+              </View>
+            ) : null}
           </View>
-        ) : (
-          <View style={[styles.emptyChart, isDark ? styles.cardDark : styles.cardLight]}>
-            <Text style={[styles.emptyText, isDark ? styles.textMutedDark : styles.textMutedLight]}>No expenses found</Text>
+
+          {/* Stacked Bar Chart */}
+          <View style={styles.chartWrapper}>
+            <Text style={[styles.chartTitle, isDark ? styles.textLight : styles.textDark]}>
+              {period} Trends & Categories
+            </Text>
+            
+            {chartData.labels.length > 0 ? (
+              <View style={[styles.chartCard, isDark ? styles.cardDark : styles.cardLight]}>
+                <StackedBarChart
+                  style={styles.chart}
+                  data={{
+                    labels: chartData.labels,
+                    legend: chartData.legend,
+                    data: chartData.data,
+                    barColors: chartData.barColors
+                  }}
+                  width={screenWidth - 48}
+                  height={260}
+                  chartConfig={chartConfig}
+                  hideLegend={false}
+                  decimalPlaces={0}
+                />
+              </View>
+            ) : (
+              <View style={[styles.emptyChart, isDark ? styles.cardDark : styles.cardLight]}>
+                <Text style={[styles.emptyText, isDark ? styles.textMutedDark : styles.textMutedLight]}>No expenses found</Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
+
+          {/* Pie Chart: Top Categories */}
+          <View style={[styles.chartWrapper, { marginTop: 32 }]}>
+            <Text style={[styles.chartTitle, isDark ? styles.textLight : styles.textDark]}>
+              Top Spending Categories
+            </Text>
+            
+            {pieData.length > 0 ? (
+              <View style={[styles.chartCard, isDark ? styles.cardDark : styles.cardLight]}>
+                <PieChart
+                  data={pieData}
+                  width={screenWidth - 48}
+                  height={220}
+                  chartConfig={chartConfig}
+                  accessor={"amount"}
+                  backgroundColor={"transparent"}
+                  paddingLeft={"15"}
+                  center={[10, 0]}
+                  absolute
+                />
+              </View>
+            ) : (
+              <View style={[styles.emptyChart, isDark ? styles.cardDark : styles.cardLight]}>
+                <Text style={[styles.emptyText, isDark ? styles.textMutedDark : styles.textMutedLight]}>No categories found</Text>
+              </View>
+            )}
+          </View>
+        </>
+      )}
 
     </ScrollView>
   );
@@ -191,9 +317,15 @@ const styles = StyleSheet.create({
   textDark: { color: '#111827' },
   textLight: { color: '#ffffff' },
   textMutedDark: { color: '#9ca3af' },
+  textLightMuted: { color: '#9ca3af' },
   textMutedLight: { color: '#6b7280' },
+  textDarkMuted: { color: '#6b7280' },
   header: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20 },
   headerTitle: { fontSize: 32, fontWeight: '800', letterSpacing: -0.5 },
+  toggleContainer: { flexDirection: 'row', borderRadius: 16, padding: 4, marginHorizontal: 24, marginBottom: 16 },
+  toggleBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
+  toggleActive: { backgroundColor: '#3b82f6' },
+  toggleText: { fontSize: 14, fontWeight: '700' },
   tabContainer: {
     flexDirection: 'row',
     marginHorizontal: 24,

@@ -153,7 +153,7 @@ app.get('/api/family/:userId', async (req, res) => {
         family: {
           include: {
             members: { include: { user: { include: { settings: true } } } },
-            expenses: { where: { visibility: 'Shared' } }
+            expenses: { where: { isDeleted: false } }
           }
         }
       }
@@ -163,9 +163,18 @@ app.get('/api/family/:userId', async (req, res) => {
       return res.json({ hasFamily: false });
     }
 
-    // Calculate totals
+    // Calculate totals based on visibility logic:
+    // Dinesh sees Google's private expenses only if Google settings toggle (sharePrivateDetails) is ON.
     const family = member.family;
-    const sharedTotal = family.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const visibleExpenses = family.expenses.filter(e => {
+      if (e.visibility === 'Shared') return true;
+      // It is Private. Check if it belongs to the current user (always visible to self) or if the owner has settings on
+      if (e.userId === userId) return true;
+      const ownerMember = family.members.find(m => m.userId === e.userId);
+      return ownerMember?.user?.settings?.sharePrivateDetails === true;
+    });
+
+    const sharedTotal = visibleExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
     const now = new Date();
     const startOfWeek = new Date(now);
@@ -175,16 +184,15 @@ app.get('/api/family/:userId', async (req, res) => {
     const startOfYear = new Date(now.getFullYear(), 0, 1);
 
     const formattedMembers = await Promise.all(family.members.map(async (m) => {
-      const spent = family.expenses.filter(e => e.userId === m.userId).reduce((s, e) => s + e.amount, 0);
+      const spent = visibleExpenses.filter(e => e.userId === m.userId).reduce((s, e) => s + e.amount, 0);
       const displayName = m.user?.name || m.user?.phone || 'Member';
       const sharePrivateDetails = m.user?.settings?.sharePrivateDetails === true;
 
       let history;
-      if (sharePrivateDetails) {
-        // Member has opted in to full transparency - pull ALL of their
-        // expenses (private + shared), not just the family-shared pool.
+      // Show details if the member shares them, or if it is the user's own card
+      if (sharePrivateDetails || m.userId === userId) {
         const allMemberExpenses = await prisma.expense.findMany({
-          where: { userId: m.userId },
+          where: { userId: m.userId, isDeleted: false },
           orderBy: { date: 'desc' }
         });
 
@@ -376,28 +384,23 @@ app.get('/api/sync/pull/:userId', async (req, res) => {
       orderBy: { date: 'desc' }
     });
 
-    // Apply Privacy Scrubber
-    const scrubbedExpenses = newExpenses.map(exp => {
-      // Don't scrub my own expenses
-      if (exp.userId === userId) return exp;
-
-      // Find the owner's settings
-      const ownerMember = sharingMembers.find(m => m.userId === exp.userId);
-      const ownerSettings = ownerMember?.user?.settings;
-
-      if (ownerSettings) {
-        if (!ownerSettings.shareMerchantName) exp.merchant = 'Hidden';
-        if (!ownerSettings.shareNotes) exp.notes = null;
-        if (!ownerSettings.sharePaymentMethod) exp.paymentMethod = null;
-      }
-
-      return exp;
-    });
-
-    res.json({ success: true, data: scrubbedExpenses });
+    res.json({ success: true, data: newExpenses });
   } catch (error) {
     console.error('Pull Sync Error:', error);
     res.status(500).json({ error: 'Failed to pull data' });
+  }
+});
+
+app.get('/api/settings/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { userId }
+    });
+    res.json({ success: true, data: settings || { sharePrivateDetails: false } });
+  } catch (error) {
+    console.error('Fetch Settings Error:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
   }
 });
 

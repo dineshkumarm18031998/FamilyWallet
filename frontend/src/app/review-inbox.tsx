@@ -28,7 +28,7 @@ export default function ReviewInboxScreen() {
   const handleApprove = async (item: any) => {
     const visibility = visibilityMap[item.id] ? 'Shared' : 'Private';
     // Save to real expenses table
-    await addExpense(db, item.amount, item.merchant, item.category, visibility, '', item.source);
+    await addExpense(db, item.amount, item.merchant, item.category, '', 'Card', visibility, '', item.source);
     // Mark as approved
     await db.runAsync("UPDATE review_queue SET status = 'Approved' WHERE id = ?", [item.id]);
     setInbox(prev => prev.filter(i => i.id !== item.id));

@@ -32,7 +32,7 @@ export default function AddExpenseModal() {
     }
     setLoading(true);
     try {
-      await addExpense(db, parsedAmount, merchant, category, visibility, notes, source);
+      await addExpense(db, parsedAmount, merchant, category, '', 'Cash', visibility, notes, source);
       router.back();
     } catch (e) {
       console.error(e);

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, TextInput, ScrollView, ActivityIndicator, Alert, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
@@ -17,6 +17,7 @@ export default function Family() {
   const [familyData, setFamilyData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+  const [sharePrivateDetails, setSharePrivateDetails] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,6 +36,13 @@ export default function Family() {
       const response = await fetch(`${API_URL}/family/${userId}`);
       const data = await response.json();
       
+      // Also fetch personal settings
+      const settingsRes = await fetch(`${API_URL}/settings/${userId}`);
+      const settingsData = await settingsRes.json();
+      if (settingsData.success && settingsData.data) {
+        setSharePrivateDetails(settingsData.data.sharePrivateDetails || false);
+      }
+
       if (data.hasFamily) {
         setFamilyData(data.data);
         setViewState('dashboard');
@@ -44,6 +52,20 @@ export default function Family() {
     } catch (error) {
       console.warn('Error fetching family:', error);
       setViewState('no_family');
+    }
+  };
+
+  const toggleSharePrivate = async (val: boolean) => {
+    setSharePrivateDetails(val);
+    try {
+      const userId = await getSession(db);
+      await fetch(`${API_URL}/settings/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, sharePrivateDetails: val })
+      });
+    } catch (e) {
+      console.warn('Failed to update privacy settings', e);
     }
   };
 
@@ -71,6 +93,10 @@ export default function Family() {
     setLoading(true);
     try {
       const userId = await getSession(db);
+      if (!userId) {
+        Alert.alert('Error', 'You must be logged in to create a family.');
+        return;
+      }
       const response = await fetch(`${API_URL}/family/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,7 +106,7 @@ export default function Family() {
       if (data.success) {
         fetchFamily();
       } else {
-        Alert.alert('Error', 'Failed to create family');
+        Alert.alert('Error', data.error || 'Failed to create family');
       }
     } catch (e) {
       Alert.alert('Error', 'Network error');
@@ -94,6 +120,10 @@ export default function Family() {
     setLoading(true);
     try {
       const userId = await getSession(db);
+      if (!userId) {
+        Alert.alert('Error', 'You must be logged in to join a family.');
+        return;
+      }
       const response = await fetch(`${API_URL}/family/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -195,6 +225,21 @@ export default function Family() {
       <View style={[styles.statsCard, { backgroundColor: '#10b981' }]}>
         <Text style={styles.statsLabel}>Family Shared Total</Text>
         <Text style={styles.statsAmount}>₹{(familyData.sharedTotal || 0).toLocaleString('en-IN')}</Text>
+        <Text style={styles.syncLabel}>Last synced: Just now</Text>
+      </View>
+
+      <View style={[styles.settingsCard, isDark ? styles.cardDark : styles.cardLight]}>
+        <View style={styles.settingsRow}>
+          <View style={{flex: 1, paddingRight: 10}}>
+            <Text style={[styles.settingsTitle, isDark ? styles.textLight : styles.textDark]}>Share My Private Details</Text>
+            <Text style={styles.settingsSub}>Allow family to see your personal expenses.</Text>
+          </View>
+          <Switch 
+            value={sharePrivateDetails}
+            onValueChange={toggleSharePrivate}
+            trackColor={{ false: '#d1d5db', true: '#10b981' }}
+          />
+        </View>
       </View>
 
       <View style={styles.sectionHeader}>
@@ -214,6 +259,7 @@ export default function Family() {
             >
               <View style={styles.memberAvatar}>
                 <Text style={styles.avatarText}>{m.name[0]}</Text>
+                <View style={styles.onlineDot} />
               </View>
               <View style={styles.memberDetails}>
                 <Text style={[styles.memberName, isDark ? styles.textLight : styles.textDark]}>{m.name}</Text>
@@ -228,7 +274,7 @@ export default function Family() {
             {/* Expanded Detailed View */}
             {expandedMemberId === m.id && (
               <View style={[styles.expandedArea, isDark ? styles.expandedDark : styles.expandedLight]}>
-                {m.sharePrivateDetails ? (
+                {m.history ? (
                   <View>
                     <Text style={styles.expandedLabel}>Detailed Spending History</Text>
                     <View style={styles.historyGrid}>
@@ -315,9 +361,15 @@ const styles = StyleSheet.create({
   dashboardContainer: { padding: 20, paddingTop: 60, paddingBottom: 100 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   settingsBtn: { padding: 8 },
-  statsCard: { padding: 24, borderRadius: 20, marginBottom: 32, elevation: 4, shadowColor: '#10b981', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  statsCard: { padding: 24, borderRadius: 20, marginBottom: 20, elevation: 4, shadowColor: '#10b981', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, position: 'relative' },
   statsLabel: { color: '#d1fae5', fontSize: 14, fontWeight: '600', marginBottom: 8 },
   statsAmount: { color: '#ffffff', fontSize: 36, fontWeight: '800' },
+  syncLabel: { color: '#d1fae5', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
+  
+  settingsCard: { padding: 20, borderRadius: 16, marginBottom: 32, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.2)' },
+  settingsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  settingsTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  settingsSub: { fontSize: 13, color: '#9ca3af' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 20, fontWeight: '700' },
   inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#10b98120', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
@@ -326,8 +378,9 @@ const styles = StyleSheet.create({
   cardDark: { backgroundColor: '#1f2937' },
   membersCard: { borderRadius: 16, overflow: 'hidden', marginBottom: 24 },
   memberRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
-  memberAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  memberAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', marginRight: 12, position: 'relative' },
   avatarText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  onlineDot: { position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#34d399', borderWidth: 2, borderColor: '#fff' },
   memberDetails: { flex: 1 },
   memberName: { fontSize: 16, fontWeight: '600' },
   memberRole: { fontSize: 13, color: '#9ca3af', marginTop: 2 },

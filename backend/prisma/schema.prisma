@@ -84,12 +84,7 @@ model Settings {
 
   // Privacy & Sharing
   sharePrivateDetails Boolean @default(false)
-  shareMerchantName   Boolean @default(true)
-  shareNotes          Boolean @default(true)
-  shareReceipts       Boolean @default(true)
-  sharePaymentMethod  Boolean @default(true)
   defaultVisibility   String  @default("Private") // "Private" or "Shared"
-  autoShare           Boolean @default(false)
 
   // Sync & Backup
   autoSync            Boolean @default(true)

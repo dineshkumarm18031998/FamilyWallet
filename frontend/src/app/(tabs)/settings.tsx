@@ -21,7 +21,9 @@ export default function Settings() {
   const [trackRecharge, setTrackRecharge] = useState(true);
   const [trackDTH, setTrackDTH] = useState(true);
   const [trackUtilities, setTrackUtilities] = useState(true);
-  const [sharePrivate, setSharePrivate] = useState(false);
+
+  // New Privacy Toggles
+  const [sharePrivateDetails, setSharePrivateDetails] = useState(false);
 
   const [darkMode, setDarkMode] = useState(isDark);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -36,12 +38,14 @@ export default function Settings() {
         try {
           const s: any = await db.getFirstAsync('SELECT * FROM tracking_settings WHERE id = 1');
           if (s) {
-            setTrackGrocery(s.trackGrocery === 1);
+            setTrackGrocery(s.trackGroceries === 1 || s.trackGrocery === 1);
             setTrackFood(s.trackFood === 1);
             setTrackRecharge(s.trackRecharge === 1);
             setTrackDTH(s.trackDTH === 1);
             setTrackUtilities(s.trackUtilities === 1);
-            setSharePrivate(s.sharePrivateDetails === 1);
+            
+            // Privacy Toggles
+            setSharePrivateDetails(s.sharePrivateDetails === 1);
           }
         } catch(e) {
           console.error(e);
@@ -63,21 +67,6 @@ export default function Settings() {
   const updateSetting = async (key: string, value: boolean, setter: any) => {
     setter(value);
     await db.runAsync(`UPDATE tracking_settings SET ${key} = ? WHERE id = 1`, [value ? 1 : 0]);
-    
-    if (key === 'sharePrivateDetails') {
-      try {
-        const userId = await getSession(db);
-        if (userId) {
-          await fetch(`${API_URL}/settings/update`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, sharePrivateDetails: value })
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to sync setting:', e);
-      }
-    }
   };
 
   const handleLogout = async () => {
@@ -211,16 +200,24 @@ export default function Settings() {
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Auto-Detect Tracking</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <SettingRow icon="cart-outline" label="Track Groceries" type="toggle" value={trackGrocery} onToggle={(v:boolean) => updateSetting('trackGrocery', v, setTrackGrocery)} />
+        <SettingRow icon="cart-outline" label="Track Groceries" type="toggle" value={trackGrocery} onToggle={(v:boolean) => updateSetting('trackGroceries', v, setTrackGrocery)} />
         <SettingRow icon="fast-food-outline" label="Track Food" type="toggle" value={trackFood} onToggle={(v:boolean) => updateSetting('trackFood', v, setTrackFood)} />
         <SettingRow icon="phone-portrait-outline" label="Track Mobile Recharge" type="toggle" value={trackRecharge} onToggle={(v:boolean) => updateSetting('trackRecharge', v, setTrackRecharge)} />
         <SettingRow icon="tv-outline" label="Track DTH Recharge" type="toggle" value={trackDTH} onToggle={(v:boolean) => updateSetting('trackDTH', v, setTrackDTH)} />
         <SettingRow icon="flash-outline" label="Track Utility Bills" type="toggle" value={trackUtilities} onToggle={(v:boolean) => updateSetting('trackUtilities', v, setTrackUtilities)} />
       </View>
 
-      <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Privacy & Sharing</Text>
+      <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Privacy Engine</Text>
       <View style={[styles.sectionCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <SettingRow icon="eye-outline" label="Share My Private Details" type="toggle" value={sharePrivate} onToggle={(v:boolean) => updateSetting('sharePrivateDetails', v, setSharePrivate)} />
+        <SettingRow icon="eye-outline" label="Share My Private Details" type="toggle" value={sharePrivateDetails} onToggle={async (v:boolean) => {
+          await updateSetting('sharePrivateDetails', v, setSharePrivateDetails);
+          const uid = await getSession(db);
+          fetch(`${API_URL}/settings/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: uid, sharePrivateDetails: v })
+          });
+        }} />
       </View>
 
       <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Appearance</Text>
@@ -279,8 +276,9 @@ const styles = StyleSheet.create({
   profilePhone: { fontSize: 13, color: '#10b981', fontWeight: '600', letterSpacing: 0.5 },
   editBtn: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 20 },
   editBtnText: { color: '#10b981', fontWeight: '700' },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: '#10b981', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, marginLeft: 8 },
-  sectionCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 32 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 12, marginTop: 8 },
+  sectionCard: { borderRadius: 20, overflow: 'hidden', marginBottom: 24 },
+  subSettingsContainer: { backgroundColor: 'rgba(16, 185, 129, 0.05)', paddingLeft: 16 },
   settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
   borderLight: { borderBottomColor: '#F3F4F6' },
   borderDark: { borderBottomColor: '#262626' },

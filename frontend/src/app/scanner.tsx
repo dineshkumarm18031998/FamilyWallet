@@ -4,7 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { addExpense } from '../utils/database';
+import { addExpense, getDefaultVisibility } from '../utils/database';
 import { processImageOCR } from '../utils/ocr';
 
 export default function ScannerScreen() {
@@ -48,11 +48,14 @@ export default function ScannerScreen() {
       const result = await processImageOCR(base64Image);
       
       if (!result || !result.success) {
-        throw new Error("OCR Processing failed");
+        Alert.alert('Scan Failed', (result as any)?.error || 'Could not process this image. Please try again.');
+        setCapturedImage(null);
+        return;
       }
 
       if (result.amount && result.amount > 0) {
-        await addExpense(db, result.amount, result.merchant, result.category || 'Shopping', 'Shared', result.upiId ? `UPI ID: ${result.upiId}` : '', 'Scanner');
+        const defaultVisibility = await getDefaultVisibility();
+        await addExpense(db, result.amount, result.merchant, result.category || 'Shopping', result.upiId ? `UPI ID: ${result.upiId}` : '', 'Cash', defaultVisibility, 'Scanner', 'OCR');
         Alert.alert('Receipt Scanned!', `Captured ₹${result.amount} at ${result.merchant}`);
         router.back();
       } else if (result.merchant && result.merchant !== "Unknown Merchant") {
@@ -62,11 +65,11 @@ export default function ScannerScreen() {
           params: { merchant: result.merchant, source: 'Scanner' }
         });
       } else {
-        Alert.alert('Scan Failed', 'Could not read any useful details from the receipt. Please try again.');
+        Alert.alert('Scan Failed', 'Could not read any useful details from the receipt. Please try again with better lighting.');
         setCapturedImage(null);
       }
     } catch (e) {
-      Alert.alert('Scan Failed', 'Could not connect to OCR service. Please try again.');
+      Alert.alert('Scan Failed', 'Could not connect to OCR service. Please check your internet connection and try again.');
       setCapturedImage(null);
     } finally {
       setScanning(false);

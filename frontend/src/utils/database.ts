@@ -39,13 +39,24 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
     );
     CREATE TABLE IF NOT EXISTS tracking_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
-      trackGrocery INTEGER DEFAULT 0,
-      trackFood INTEGER DEFAULT 0,
-      trackRecharge INTEGER DEFAULT 0,
-      trackDTH INTEGER DEFAULT 0,
-      trackUtilities INTEGER DEFAULT 0,
-      sharePrivateDetails INTEGER DEFAULT 0
+      trackSMS INTEGER DEFAULT 1,
+      trackNotifications INTEGER DEFAULT 1,
+      trackOCR INTEGER DEFAULT 1,
+      trackFood INTEGER DEFAULT 1,
+      trackGroceries INTEGER DEFAULT 1,
+      trackFuel INTEGER DEFAULT 1,
+      trackUtilities INTEGER DEFAULT 1,
+      trackMedical INTEGER DEFAULT 1,
+      trackRecharge INTEGER DEFAULT 1,
+      trackDTH INTEGER DEFAULT 1,
+      trackEducation INTEGER DEFAULT 1,
+      sharePrivateDetails INTEGER DEFAULT 0,
+      defaultVisibility TEXT DEFAULT 'Private',
+      autoSync INTEGER DEFAULT 1,
+      cloudBackup INTEGER DEFAULT 0,
+      appearance TEXT DEFAULT 'System'
     );
+    INSERT OR IGNORE INTO tracking_settings (id) VALUES (1);
     CREATE TABLE IF NOT EXISTS budgets (
       category TEXT PRIMARY KEY,
       target INTEGER NOT NULL
@@ -77,7 +88,9 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
     "ALTER TABLE expenses ADD COLUMN subcategory TEXT;",
     "ALTER TABLE expenses ADD COLUMN paymentMethod TEXT;",
     "ALTER TABLE expenses ADD COLUMN isDeleted INTEGER DEFAULT 0;",
-    "ALTER TABLE expenses ADD COLUMN updatedAt TEXT;"
+    "ALTER TABLE expenses ADD COLUMN updatedAt TEXT;",
+    "ALTER TABLE tracking_settings ADD COLUMN sharePrivateDetails INTEGER DEFAULT 0;",
+    "ALTER TABLE tracking_settings ADD COLUMN defaultVisibility TEXT DEFAULT 'Private';"
   ];
 
   for (const m of migrations) {
@@ -89,11 +102,7 @@ export const initDB = async (db: SQLite.SQLiteDatabase) => {
   }
 
   try {
-    // Initialize default tracking settings if empty (Default ON)
-    await db.execAsync("INSERT OR IGNORE INTO tracking_settings (id, trackGrocery, trackFood, trackRecharge, trackDTH, trackUtilities, sharePrivateDetails) VALUES (1, 1, 1, 1, 1, 1, 0);");
-    
-    // Force migrate existing users who had it stuck on 0
-    await db.execAsync("UPDATE tracking_settings SET trackGrocery=1, trackFood=1, trackRecharge=1, trackDTH=1, trackUtilities=1 WHERE id=1 AND trackGrocery=0 AND trackFood=0 AND trackRecharge=0 AND trackDTH=0;");
+    // Initial data seeded by table creation if needed
   } catch (e) {
     console.error(e);
   }
@@ -157,7 +166,9 @@ export const getAllExpenses = async (db: SQLite.SQLiteDatabase, mode: 'My Wallet
     query = "SELECT * FROM expenses WHERE userId = ? AND isDeleted = 0 ORDER BY date DESC";
     params = [userId];
   } else {
-    query = "SELECT * FROM expenses WHERE visibility = 'Shared' AND isDeleted = 0 ORDER BY date DESC";
+    // Family Wallet: My own Shared expenses + all allowed expenses from other members
+    query = "SELECT * FROM expenses WHERE (userId != ? OR visibility = 'Shared') AND isDeleted = 0 ORDER BY date DESC";
+    params = [userId];
   }
   
   const allRows = await db.getAllAsync(query, params);
@@ -171,8 +182,8 @@ export const getWalletTotals = async (db: SQLite.SQLiteDatabase) => {
   // My Wallet total = ALL expenses from me (private and shared)
   const myWalletResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE userId = ? AND isDeleted = 0", [userId]);
   
-  // Family Wallet total = ALL Shared expenses
-  const familyWalletResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Shared' AND isDeleted = 0");
+  // Family Wallet total = My own Shared expenses + other members' allowed expenses
+  const familyWalletResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE (userId != ? OR visibility = 'Shared') AND isDeleted = 0", [userId]);
   
   return {
     privateTotal: Math.round((myWalletResult?.total || 0) * 100) / 100,
@@ -191,7 +202,8 @@ export const getCategoryTotals = async (db: SQLite.SQLiteDatabase, mode: 'My Wal
     query = "SELECT category, SUM(amount) as total FROM expenses WHERE userId = ? AND isDeleted = 0 GROUP BY category ORDER BY total DESC";
     params = [userId];
   } else {
-    query = "SELECT category, SUM(amount) as total FROM expenses WHERE visibility = 'Shared' AND isDeleted = 0 GROUP BY category ORDER BY total DESC";
+    query = "SELECT category, SUM(amount) as total FROM expenses WHERE (userId != ? OR visibility = 'Shared') AND isDeleted = 0 GROUP BY category ORDER BY total DESC";
+    params = [userId];
   }
   
   const result: any[] = await db.getAllAsync(query, params);
@@ -201,10 +213,16 @@ export const getCategoryTotals = async (db: SQLite.SQLiteDatabase, mode: 'My Wal
   }));
 };
 
-export const getHistoricalTrends = async (db: SQLite.SQLiteDatabase, timeframe: 'Weekly' | 'Monthly' | 'Yearly') => {
+export const getHistoricalTrends = async (db: SQLite.SQLiteDatabase, timeframe: 'Weekly' | 'Monthly' | 'Yearly', mode: 'My Wallet' | 'Family Wallet' = 'My Wallet') => {
   const sessionUserId = await getSession(db);
   const userId = sessionUserId || '';
-  const visClause = "(userId = ? OR visibility = 'Shared')";
+  
+  let visClause = "";
+  if (mode === 'My Wallet') {
+    visClause = `userId = '${userId}' AND isDeleted = 0`;
+  } else {
+    visClause = `(userId != '${userId}' OR visibility = 'Shared') AND isDeleted = 0`;
+  }
 
   let query = '';
   if (timeframe === 'Weekly') {
@@ -233,7 +251,7 @@ export const getHistoricalTrends = async (db: SQLite.SQLiteDatabase, timeframe: 
     `;
   }
   
-  const result: any[] = await db.getAllAsync(query, [userId]);
+  const result: any[] = await db.getAllAsync(query);
   return result;
 };
 
@@ -310,8 +328,8 @@ export const getWalletTotalsForMonth = async (db: SQLite.SQLiteDatabase, year: n
 
   // My Wallet total
   const myWalletResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE userId = ? AND isDeleted = 0 AND date >= ? AND date <= ?", [userId, start, end]);
-  // Family Wallet total
-  const familyWalletResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE visibility = 'Shared' AND isDeleted = 0 AND date >= ? AND date <= ?", [start, end]);
+  // Family Wallet total: My own Shared + other members' allowed expenses
+  const familyWalletResult: any = await db.getFirstAsync("SELECT SUM(amount) as total FROM expenses WHERE (userId != ? OR visibility = 'Shared') AND isDeleted = 0 AND date >= ? AND date <= ?", [userId, start, end]);
   
   return {
     privateTotal: Math.round((myWalletResult?.total || 0) * 100) / 100,
@@ -331,33 +349,46 @@ export const getRecentExpensesForMonth = async (db: SQLite.SQLiteDatabase, year:
     query = "SELECT * FROM expenses WHERE userId = ? AND isDeleted = 0 AND date >= ? AND date <= ? ORDER BY date DESC LIMIT ?";
     params = [userId, start, end, limit];
   } else {
-    query = "SELECT * FROM expenses WHERE visibility = 'Shared' AND isDeleted = 0 AND date >= ? AND date <= ? ORDER BY date DESC LIMIT ?";
-    params = [start, end, limit];
+    query = "SELECT * FROM expenses WHERE (userId != ? OR visibility = 'Shared') AND isDeleted = 0 AND date >= ? AND date <= ? ORDER BY date DESC LIMIT ?";
+    params = [userId, start, end, limit];
   }
   
   const allRows = await db.getAllAsync(query, params);
   return allRows;
 };
 
-export const getCategoryTotalsForPeriod = async (db: SQLite.SQLiteDatabase, startDate: string, endDate: string) => {
+export const getCategoryTotalsForPeriod = async (db: SQLite.SQLiteDatabase, startDate: string, endDate: string, mode: 'My Wallet' | 'Family Wallet' = 'My Wallet') => {
   const sessionUserId = await getSession(db);
   const userId = sessionUserId || '';
-  const result: any[] = await db.getAllAsync(
-    "SELECT category, SUM(amount) as total FROM expenses WHERE (userId = ? OR visibility = 'Shared') AND date >= ? AND date <= ? GROUP BY category ORDER BY total DESC",
-    [userId, startDate, endDate]
-  );
+  
+  let query = "";
+  let params: any[] = [];
+  
+  if (mode === 'My Wallet') {
+    query = "SELECT category, SUM(amount) as total FROM expenses WHERE userId = ? AND isDeleted = 0 AND date >= ? AND date <= ? GROUP BY category ORDER BY total DESC";
+    params = [userId, startDate, endDate];
+  } else {
+    query = "SELECT category, SUM(amount) as total FROM expenses WHERE (userId != ? OR visibility = 'Shared') AND isDeleted = 0 AND date >= ? AND date <= ? GROUP BY category ORDER BY total DESC";
+    params = [userId, startDate, endDate];
+  }
+  
+  const result: any[] = await db.getAllAsync(query, params);
   return result.map(r => ({
     ...r,
     total: Math.round((r.total || 0) * 100) / 100
   }));
 };
 
-export const getTrendData = async (db: SQLite.SQLiteDatabase, periodType: 'week' | 'month' | 'year', currentYear: number, currentMonth: number) => {
-  // Returns aggregated sum arrays for the chart based on the selected period.
-  // We'll process this raw data in JS for simplicity to handle different month lengths.
+export const getTrendData = async (db: SQLite.SQLiteDatabase, periodType: 'week' | 'month' | 'year', currentYear: number, currentMonth: number, mode: 'My Wallet' | 'Family Wallet' = 'My Wallet') => {
   const sessionUserId = await getSession(db);
   const userId = sessionUserId || '';
-  const visClause = "(userId = ? OR visibility = 'Shared')";
+  
+  let visClause = "";
+  if (mode === 'My Wallet') {
+    visClause = `userId = '${userId}' AND isDeleted = 0`;
+  } else {
+    visClause = `(userId != '${userId}' OR visibility = 'Shared') AND isDeleted = 0`;
+  }
 
   let query = '';
   let params: any[] = [];
@@ -367,19 +398,20 @@ export const getTrendData = async (db: SQLite.SQLiteDatabase, periodType: 'week'
     d.setDate(d.getDate() - 7);
     const startStr = d.toISOString();
     query = `SELECT date, SUM(amount) as total FROM expenses WHERE date >= ? AND ${visClause} GROUP BY strftime('%Y-%m-%d', date) ORDER BY date ASC`;
-    params = [startStr, userId];
+    params = [startStr];
   } else if (periodType === 'month') {
     const start = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0).toISOString();
     const end = new Date(currentYear, currentMonth, 0, 23, 59, 59).toISOString();
     query = `SELECT date, SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ? AND ${visClause} GROUP BY strftime('%Y-%m-%d', date) ORDER BY date ASC`;
-    params = [start, end, userId];
+    params = [start, end];
   } else if (periodType === 'year') {
     const start = new Date(currentYear, 0, 1, 0, 0, 0).toISOString();
     const end = new Date(currentYear, 11, 31, 23, 59, 59).toISOString();
     query = `SELECT date, SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ? AND ${visClause} GROUP BY strftime('%Y-%m', date) ORDER BY date ASC`;
-    params = [start, end, userId];
+    params = [start, end];
   }
 
   const rawData: any[] = await db.getAllAsync(query, params);
   return rawData;
 };
+export const getDefaultVisibility = async (db?: SQLite.SQLiteDatabase) => { return 'Private'; };

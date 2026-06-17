@@ -18,12 +18,15 @@ export default function Home() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [hasFamily, setHasFamily] = useState(false);
+  const [familyData, setFamilyData] = useState<any>(null);
 
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [totals, setTotals] = useState({ sharedTotal: 0, privateTotal: 0 });
   const [categoryStats, setCategoryStats] = useState<any[]>([]);
   const [fabOpen, setFabOpen] = useState(false);
   const [reviewCount, setReviewCount] = useState(0);
+  const [mode, setMode] = useState<'My Wallet' | 'Family Wallet'>('My Wallet');
   
   // Share Intent Handling
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
@@ -38,17 +41,17 @@ export default function Home() {
   useFocusEffect(
     useCallback(() => {
       const loadData = async () => {
-        // Only load data for CURRENT MONTH, max 3 to prevent huge scrolling on home page
-        const tx = await getRecentExpensesForMonth(db, currentYear, currentMonth, 3);
+        // Quick Stats default to My Wallet
+        const startStr = `${currentYear}-${currentMonth < 10 ? '0'+currentMonth : currentMonth}-01`;
+        const endStr = `${currentYear}-${currentMonth < 10 ? '0'+currentMonth : currentMonth}-31`;
+
+        const tx = await getRecentExpensesForMonth(db, currentYear, currentMonth, mode, 5);
         setRecentTx(tx);
         
         const t = await getWalletTotalsForMonth(db, currentYear, currentMonth);
         setTotals(t);
         
-        // Category totals for this month
-        const startStr = `${currentYear}-${currentMonth < 10 ? '0'+currentMonth : currentMonth}-01`;
-        const endStr = `${currentYear}-${currentMonth < 10 ? '0'+currentMonth : currentMonth}-31`;
-        const stats = await getCategoryTotalsForPeriod(db, startStr, endStr);
+        const stats = await getCategoryTotalsForPeriod(db, startStr, endStr, 'My Wallet');
         setCategoryStats(stats as any[]);
         
         try {
@@ -56,18 +59,52 @@ export default function Home() {
           setReviewCount(res?.count || 0);
         } catch(e) {}
 
-        // Background Cloud Sync
+        // Fetch family details to update connection status
+        try {
+          const { getSession } = await import('../../utils/database');
+          const userId = await getSession(db);
+          if (userId) {
+            const { API_URL } = await import('../../utils/apiConfig');
+            const res = await fetch(`${API_URL}/family/${userId}`);
+            const data = await res.json();
+            if (data.hasFamily) {
+              setHasFamily(true);
+              setFamilyData(data.data);
+            } else {
+              setHasFamily(false);
+              setFamilyData(null);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to fetch family status in home", e);
+        }
+
         import('../../utils/database').then(({ syncWithCloud }) => {
-          syncWithCloud(db).then(() => {
-            // Silently refresh UI if sync brought new data
-            getRecentExpensesForMonth(db, currentYear, currentMonth, 3).then(setRecentTx);
+          syncWithCloud(db).then(async () => {
+            getRecentExpensesForMonth(db, currentYear, currentMonth, mode, 5).then(setRecentTx);
             getWalletTotalsForMonth(db, currentYear, currentMonth).then(setTotals);
-            getCategoryTotalsForPeriod(db, startStr, endStr).then((s: any) => setCategoryStats(s));
+            getCategoryTotalsForPeriod(db, startStr, endStr, 'My Wallet').then((s: any) => setCategoryStats(s));
+            
+            // Re-fetch family details after sync completes
+            const { getSession } = await import('../../utils/database');
+            const userId = await getSession(db);
+            if (userId) {
+              const { API_URL } = await import('../../utils/apiConfig');
+              const res = await fetch(`${API_URL}/family/${userId}`);
+              const data = await res.json();
+              if (data.hasFamily) {
+                setHasFamily(true);
+                setFamilyData(data.data);
+              } else {
+                setHasFamily(false);
+                setFamilyData(null);
+              }
+            }
           }).catch(console.warn);
         });
       };
       loadData();
-    }, [db, currentYear, currentMonth])
+    }, [db, currentYear, currentMonth, mode])
   );
 
   useEffect(() => {
@@ -118,18 +155,18 @@ export default function Home() {
           const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: FileSystem.EncodingType.Base64 });
           const result = await processImageOCR(base64);
           
-          if (result && result.success && result.amount > 0) {
+          if (result && result.success && result.amount && result.amount > 0) {
             const date = new Date().toISOString();
             const timestamp = Date.now();
             await db.runAsync(
               "INSERT INTO review_queue (amount, merchant, category, date, source, status, confidence, preview, timestamp) VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?, ?)",
-              [result.amount, result.merchant, result.category, date, "Shared Screenshot", 100, result.upiId ? `UPI: ${result.upiId}` : "Captured via Share", timestamp]
+              [result.amount, result.merchant || 'Unknown', result.category || 'Other', date, "Shared Screenshot", 100, result.upiId ? `UPI: ${result.upiId}` : "Captured via Share", timestamp]
             );
             
             setReviewCount(prev => prev + 1);
-            Alert.alert("Screenshot Processed", `Captured ₹${result.amount} from ${result.merchant}. It has been added to your Review Inbox!`);
+            Alert.alert("Screenshot Processed", `Captured ₹${result.amount} from ${result.merchant || 'Unknown'}. It has been added to your Review Inbox!`);
           } else {
-            Alert.alert("OCR Failed", "Could not detect a valid amount or UPI details from the shared image.");
+            Alert.alert("OCR Failed", (result as any)?.error || "Could not detect a valid amount or UPI details from the shared image.");
           }
         } catch (e) {
           Alert.alert("Error", "Failed to process shared image.");
@@ -169,22 +206,26 @@ export default function Home() {
 
         {/* Wallets */}
         <View style={styles.walletsContainer}>
-          <LinearGradient colors={['#10b981', '#059669']} style={[styles.card, styles.gradientCard]}>
-            <View style={styles.cardHeaderRow}>
-              <Ionicons name="people" size={22} color="#ffffff" />
-              <Text style={styles.cardLabel}>Shared</Text>
-            </View>
-            <Text style={styles.cardAmount}>₹{totals.sharedTotal.toLocaleString('en-IN')}</Text>
-          </LinearGradient>
-
           <LinearGradient colors={['#3b82f6', '#2563eb']} style={[styles.card, styles.gradientCard]}>
             <View style={styles.cardHeaderRow}>
               <Ionicons name="person" size={22} color="#ffffff" />
-              <Text style={styles.cardLabel}>Private</Text>
+              <Text style={styles.cardLabel}>My Wallet</Text>
             </View>
             <Text style={styles.cardAmount}>₹{totals.privateTotal.toLocaleString('en-IN')}</Text>
           </LinearGradient>
+
+          <LinearGradient colors={['#10b981', '#059669']} style={[styles.card, styles.gradientCard]}>
+            <View style={styles.cardHeaderRow}>
+              <Ionicons name="people" size={22} color="#ffffff" />
+              <Text style={styles.cardLabel}>Family Wallet</Text>
+            </View>
+            <Text style={[styles.cardAmount, !hasFamily && { fontSize: 14, fontWeight: '700', marginTop: 6 }]}>
+              {hasFamily ? `₹${totals.sharedTotal.toLocaleString('en-IN')}` : 'Not Connected'}
+            </Text>
+          </LinearGradient>
         </View>
+
+
 
         {/* Feature Links */}
         <View style={styles.featureLinksRow}>
@@ -236,9 +277,23 @@ export default function Home() {
         </ScrollView>
 
         {/* Recent Transactions */}
-        <View style={styles.sectionHeader}>
+        <View style={[styles.sectionHeader, { marginBottom: 8 }]}>
           <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Recent Transactions</Text>
-          <TouchableOpacity onPress={() => router.push('/expenses')}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/history')}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>
+        </View>
+
+        {/* Transaction Tabs */}
+        <View style={[styles.tabsContainer, isDark ? styles.cardDark : styles.cardLight]}>
+          <TouchableOpacity 
+            style={[styles.tabBtn, mode === 'My Wallet' && styles.tabActive]} 
+            onPress={() => setMode('My Wallet')}>
+            <Text style={[styles.tabText, mode === 'My Wallet' ? styles.textLight : (isDark ? styles.textLightMuted : styles.textDarkMuted)]}>My Transactions</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tabBtn, mode === 'Family Wallet' && styles.tabActive]} 
+            onPress={() => setMode('Family Wallet')}>
+            <Text style={[styles.tabText, mode === 'Family Wallet' ? styles.textLight : (isDark ? styles.textLightMuted : styles.textDarkMuted)]}>Family Transactions</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={[styles.transactionsCard, isDark ? styles.cardDark : styles.cardLight]}>
@@ -270,6 +325,44 @@ export default function Home() {
             )}
           </ScrollView>
         </View>
+
+        {/* Family Member Spending Breakdown */}
+        <View style={{ marginTop: 28 }}>
+          <View style={[styles.sectionHeader, { marginBottom: 8 }]}>
+            <Text style={[styles.sectionTitle, isDark ? styles.textLight : styles.textDark]}>Family Member Spending</Text>
+          </View>
+          
+          <View style={[styles.transactionsCard, isDark ? styles.cardDark : styles.cardLight, { padding: 20 }]}>
+            {hasFamily && familyData && familyData.members ? (
+              <View style={{ gap: 16 }}>
+                {familyData.members.map((member: any) => (
+                  <View key={member.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{member.name ? member.name[0] : 'M'}</Text>
+                      </View>
+                      <View>
+                        <Text style={[{ fontSize: 16, fontWeight: '600' }, isDark ? styles.textLight : styles.textDark]}>{member.name}</Text>
+                        <Text style={{ fontSize: 12, color: '#9ca3af' }}>{member.role}</Text>
+                      </View>
+                    </View>
+                    <Text style={[{ fontSize: 16, fontWeight: '800' }, isDark ? styles.textLight : styles.textDark]}>
+                      ₹{member.spent?.toLocaleString('en-IN') || '0'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+                <Ionicons name="lock-closed-outline" size={36} color="#9ca3af" style={{ marginBottom: 8 }} />
+                <Text style={{ textAlign: 'center', color: '#9ca3af', fontWeight: '500', fontSize: 14 }}>
+                  Not Connected — family details will appear here once connected.
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
       </ScrollView>
 
       {/* FAB Modal Overlay */}
@@ -343,12 +436,17 @@ const styles = StyleSheet.create({
   textLightMuted: { color: '#9CA3AF' },
   textDarkMuted: { color: '#6B7280' },
   
-  walletsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, marginBottom: 32 },
+  walletsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, marginBottom: 24 },
   card: { flex: 1, padding: 20, borderRadius: 24 },
   gradientCard: { elevation: 8, shadowColor: '#10b981', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12 },
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   cardLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
   cardAmount: { color: '#ffffff', fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
+  
+  tabsContainer: { flexDirection: 'row', borderRadius: 16, padding: 4, marginBottom: 16 },
+  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 12 },
+  tabActive: { backgroundColor: '#3b82f6' },
+  tabText: { fontSize: 13, fontWeight: '700' },
   
   featureLinksRow: { flexDirection: 'row', gap: 16, marginBottom: 36 },
   featureBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 20, minHeight: 76 },
